@@ -9,33 +9,66 @@
       Title="Order Status">
 
     <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Text="All Orders" FontSize="18" FontWeight="Bold" Margin="5"/>
+        <!-- Left Panel: Orders List and Actions -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <DataGrid x:Name="OrdersDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Order ID" Binding="{Binding OrderId}" Width="Auto"/>
-                <DataGridTextColumn Header="Date" Binding="{Binding OrderDate, StringFormat='g'}" Width="*"/>
-                <DataGridTextColumn Header="Table" Binding="{Binding TableNumber}" Width="Auto"/>
-                <DataGridTextColumn Header="Total" Binding="{Binding TotalAmount, StringFormat={}{0:N0} VND}" Width="*"/>
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
+            <StackPanel Orientation="Horizontal" Margin="5">
+                <TextBlock Text="Orders for:" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                <DatePicker x:Name="OrderDatePicker" Margin="10,0" VerticalAlignment="Center" SelectedDateChanged="OrderDatePicker_SelectedDateChanged"/>
+            </StackPanel>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <TextBlock Text="Update Status:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <ComboBox x:Name="StatusComboBox" Width="120">
-                <ComboBoxItem Content="Pending"/>
-                <ComboBoxItem Content="Preparing"/>
-                <ComboBoxItem Content="Completed"/>
-                <ComboBoxItem Content="Cancelled"/>
-            </ComboBox>
-            <Button x:Name="UpdateStatusButton" Content="Update" Width="80" Margin="10,0,0,0" Click="UpdateStatusButton_Click"/>
-        </StackPanel>
+            <DataGrid x:Name="OrdersDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionChanged="OrdersDataGrid_SelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID" Binding="{Binding OrderId}" Width="Auto"/>
+                    <DataGridTextColumn Header="Date" Binding="{Binding OrderDate, StringFormat='g'}" Width="*"/>
+                    <DataGridTextColumn Header="Table" Binding="{Binding TableNumber}" Width="Auto"/>
+                    <DataGridTextColumn Header="Total" Binding="{Binding TotalAmount, StringFormat={}{0:N0} VND}" Width="*"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                <TextBlock Text="Update Status:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <ComboBox x:Name="StatusComboBox" Width="120">
+                    <ComboBoxItem Content="Pending"/>
+                    <ComboBoxItem Content="Preparing"/>
+                    <ComboBoxItem Content="Completed"/>
+                    <ComboBoxItem Content="Cancelled"/>
+                </ComboBox>
+                <Button x:Name="UpdateStatusButton" Content="Update" Width="80" Margin="10,0,0,0" Click="UpdateStatusButton_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Right Panel: Order Details -->
+        <Border Grid.Column="1" BorderBrush="LightGray" BorderThickness="1,0,0,0" Margin="10,0,0,0" Padding="10">
+            <ScrollViewer>
+                <StackPanel>
+                    <TextBlock Text="Order Details" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock x:Name="OrderDetailsNote" Text="Select an order to see details" Margin="0,5,0,10" FontStyle="Italic"/>
+                    
+                    <TextBlock Text="Customer Note:" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <TextBlock x:Name="CustomerNoteTextBlock" TextWrapping="Wrap" MinHeight="40" Text="N/A"/>
+
+                    <TextBlock Text="Items:" FontWeight="Bold" Margin="0,10,0,5"/>
+                    <DataGrid x:Name="OrderDetailsDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Item" Binding="{Binding Product.ProductName}" Width="2*"/>
+                            <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="Auto"/>
+                            <DataGridTextColumn Header="Options" Binding="{Binding Options}" Width="3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
     </Grid>
 </Page>

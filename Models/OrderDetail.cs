@@ -21,11 +21,29 @@ public partial class OrderDetail
 
     public string? Notes { get; set; }
 
-    public decimal TotalPrice => Price * Quantity;
+    public decimal TotalPrice => (Price + Toppings.Sum(t => t.Price)) * Quantity;
 
     public virtual Order Order { get; set; } = null!;
 
     public virtual Product Product { get; set; } = null!;
 
     public virtual ICollection<Product> Toppings { get; set; } = new List<Product>();
+
+    public string Options
+    {
+        get
+        {
+            var options = new List<string>();
+            if (Product?.Category?.CategoryName == "Cà Phê" || Product?.Category?.CategoryName == "Trà")
+            {
+                options.Add($"{SugarPercent}% Sugar");
+                options.Add($"{IcePercent}% Ice");
+            }
+            if (Toppings.Any())
+            {
+                options.Add("Toppings: " + string.Join(", ", Toppings.Select(t => t.ProductName)));
+            }
+            return string.Join(", ", options);
+        }
+    }
 }
