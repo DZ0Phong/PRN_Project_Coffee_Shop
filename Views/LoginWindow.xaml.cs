@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PRN_Project_Coffee_Shop.Models;
 using System.Linq;
 using System.Windows;
@@ -13,12 +14,12 @@ namespace PRN_Project_Coffee_Shop.Views
 
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            string username = UsernameTextBox.Text;
+            string email = EmailTextBox.Text;
             string password = PasswordBox.Password;
 
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
-                MessageBox.Show("Please enter both username and password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Please enter both email and password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -26,7 +27,7 @@ namespace PRN_Project_Coffee_Shop.Views
             {
                 // IMPORTANT: In a real-world application, you MUST hash passwords.
                 // This is for demonstration purposes only.
-                var user = context.Users.FirstOrDefault(u => u.Username == username);
+                var user = context.Users.Include(u => u.Role).FirstOrDefault(u => u.Email == email);
 
                 if (user != null)
                 {
@@ -44,12 +45,12 @@ namespace PRN_Project_Coffee_Shop.Views
                     }
                     else
                     {
-                        MessageBox.Show("Invalid username or password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show("Invalid email or password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 }
                 else
                 {
-                    MessageBox.Show("Invalid username or password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("Invalid email or password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

@@ -30,7 +30,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             else
             {
                 CustomersDataGrid.ItemsSource = _context.Customers
-                                                        .Where(c => c.PhoneNumber.Contains(searchText))
+                                                        .Where(c => c.Email.Contains(searchText) || c.CustomerName.Contains(searchText))
                                                         .ToList();
             }
         }

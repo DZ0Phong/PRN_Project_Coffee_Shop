@@ -12,9 +12,13 @@
             <ColumnDefinition Width="200"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
         <!-- Navigation Panel -->
-        <StackPanel Grid.Column="0" Background="#f0f0f0">
+        <StackPanel Grid.Column="0" Grid.Row="0" Background="#f0f0f0">
             <TextBlock Text="Coffee Shop" FontSize="20" FontWeight="Bold" Margin="10" HorizontalAlignment="Center"/>
             <Button x:Name="OrderManagementButton" Content="Create Order" Margin="10,5" Click="OrderManagementButton_Click"/>
             <Button x:Name="OrderStatusButton" Content="Order Status" Margin="10,5" Click="OrderStatusButton_Click"/>
@@ -30,6 +34,13 @@
         </StackPanel>
 
         <!-- Content Area -->
-        <Frame x:Name="MainFrame" Grid.Column="1" NavigationUIVisibility="Hidden"/>
+        <Frame x:Name="MainFrame" Grid.Column="1" Grid.Row="0" NavigationUIVisibility="Hidden"/>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="1" Grid.ColumnSpan="2">
+            <StatusBarItem>
+                <TextBlock x:Name="UserInfoTextBlock" Margin="5,0"/>
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>

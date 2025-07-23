@@ -13,12 +13,9 @@ public partial class Ingredient
 
     public string Unit { get; set; } = null!;
 
-    public DateTime? ExpiryDate { get; set; }
+    public DateOnly? ExpiryDate { get; set; }
 
     public decimal WarningThreshold { get; set; }
 
     public virtual ICollection<ProductIngredient> ProductIngredients { get; set; } = new List<ProductIngredient>();
-
-    // Calculated property for low stock warning
-    public bool IsLowOnStock => QuantityInStock <= WarningThreshold;
 }

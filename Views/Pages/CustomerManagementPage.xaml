@@ -25,14 +25,14 @@
             <TextBlock Text="Customers" FontSize="18" FontWeight="Bold" Margin="5"/>
             
             <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5">
-                <TextBlock Text="Search by Phone:" VerticalAlignment="Center"/>
+                <TextBlock Text="Search by Email/Name:" VerticalAlignment="Center"/>
                 <TextBox x:Name="SearchTextBox" Width="150" Margin="5,0"/>
                 <Button x:Name="SearchButton" Content="Search" Click="SearchButton_Click"/>
             </StackPanel>
 
             <DataGrid x:Name="CustomersDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionChanged="CustomersDataGrid_SelectionChanged">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Phone Number" Binding="{Binding PhoneNumber}" Width="*"/>
+                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*"/>
                     <DataGridTextColumn Header="Name" Binding="{Binding CustomerName}" Width="*"/>
                     <DataGridTextColumn Header="Points" Binding="{Binding Points}" Width="Auto"/>
                 </DataGrid.Columns>

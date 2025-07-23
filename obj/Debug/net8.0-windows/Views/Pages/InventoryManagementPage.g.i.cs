@@ -125,8 +125,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/PRN_Project_Coffee_Shop;V1.0.0.0;component/views/pages/inventorymanagementpage.x" +
-                    "aml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/PRN_Project_Coffee_Shop;component/views/pages/inventorymanagementpage.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\Views\Pages\InventoryManagementPage.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

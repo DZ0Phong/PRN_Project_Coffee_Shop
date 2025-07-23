@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace PRN_Project_Coffee_Shop.Models;
 
@@ -39,24 +38,15 @@ public partial class PrnProjectCoffeeShopContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!optionsBuilder.IsConfigured)
-        {
-            var builder = new ConfigurationBuilder()
-                                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-            IConfigurationRoot configuration = builder.Build();
-            optionsBuilder.UseSqlServer(configuration.GetConnectionString("DBContext"));
-        }
-    }
+        => optionsBuilder.UseSqlServer("server=localhost;database=PRN_Project_Coffee_Shop;uid=sa;pwd=sa123456;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Category>(entity =>
         {
-            entity.HasKey(e => e.CategoryId).HasName("PK__Categori__19093A2B841224FC");
+            entity.HasKey(e => e.CategoryId).HasName("PK__Categori__19093A2B88A158C8");
 
-            entity.HasIndex(e => e.CategoryName, "UQ__Categori__8517B2E0C0CACBD9").IsUnique();
+            entity.HasIndex(e => e.CategoryName, "UQ__Categori__8517B2E0A2C5BA2E").IsUnique();
 
             entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
             entity.Property(e => e.CategoryName).HasMaxLength(100);
@@ -64,20 +54,19 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<Customer>(entity =>
         {
-            entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64B8D0422441");
+            entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64B802D874C7");
 
-            entity.HasIndex(e => e.PhoneNumber, "UQ__Customer__85FB4E38DEAE72E3").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__Customer__A9D10534DC1A3AA5").IsUnique();
 
             entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
             entity.Property(e => e.CustomerName).HasMaxLength(100);
             entity.Property(e => e.Email).HasMaxLength(100);
-            entity.Property(e => e.PhoneNumber).HasMaxLength(20);
             entity.Property(e => e.Points).HasDefaultValue(0);
         });
 
         modelBuilder.Entity<Employee>(entity =>
         {
-            entity.HasKey(e => e.EmployeeId).HasName("PK__Employee__7AD04FF113F457F9");
+            entity.HasKey(e => e.EmployeeId).HasName("PK__Employee__7AD04FF1172B5779");
 
             entity.Property(e => e.EmployeeId).HasColumnName("EmployeeID");
             entity.Property(e => e.FullName).HasMaxLength(100);
@@ -88,14 +77,14 @@ public partial class PrnProjectCoffeeShopContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.Employees)
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Employees__UserI__5BE2A6F2");
+                .HasConstraintName("FK__Employees__UserI__619B8048");
         });
 
         modelBuilder.Entity<Ingredient>(entity =>
         {
-            entity.HasKey(e => e.IngredientId).HasName("PK__Ingredie__BEAEB27AD2A83D3C");
+            entity.HasKey(e => e.IngredientId).HasName("PK__Ingredie__BEAEB27A9C92AFA1");
 
-            entity.HasIndex(e => e.IngredientName, "UQ__Ingredie__A1B2F1CCAC4E75D3").IsUnique();
+            entity.HasIndex(e => e.IngredientName, "UQ__Ingredie__A1B2F1CC5C319EA2").IsUnique();
 
             entity.Property(e => e.IngredientId).HasColumnName("IngredientID");
             entity.Property(e => e.IngredientName).HasMaxLength(100);
@@ -106,7 +95,7 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<Order>(entity =>
         {
-            entity.HasKey(e => e.OrderId).HasName("PK__Orders__C3905BAF758218AB");
+            entity.HasKey(e => e.OrderId).HasName("PK__Orders__C3905BAFD0A9A569");
 
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
             entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
@@ -131,27 +120,48 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<OrderDetail>(entity =>
         {
-            entity.HasKey(e => e.OrderDetailId).HasName("PK__OrderDet__D3B9D30C485ABAE7");
+            entity.HasKey(e => e.OrderDetailId).HasName("PK__OrderDet__D3B9D30C227AE148");
 
             entity.Property(e => e.OrderDetailId).HasColumnName("OrderDetailID");
             entity.Property(e => e.OrderId).HasColumnName("OrderID");
             entity.Property(e => e.Price).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.ProductId).HasColumnName("ProductID");
+            entity.Property(e => e.SugarPercent).HasDefaultValue(100);
+            entity.Property(e => e.IcePercent).HasDefaultValue(100);
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderDetails)
                 .HasForeignKey(d => d.OrderId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__OrderDeta__Order__5441852A");
+                .HasConstraintName("FK__OrderDeta__Order__5629CD9C");
 
             entity.HasOne(d => d.Product).WithMany(p => p.OrderDetails)
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__OrderDeta__Produ__5535A963");
+                .HasConstraintName("FK__OrderDeta__Produ__571DF1D5");
+
+            entity.HasMany(d => d.Toppings).WithMany(p => p.OrderDetailsNavigation)
+                .UsingEntity<Dictionary<string, object>>(
+                    "OrderDetailTopping",
+                    r => r.HasOne<Product>().WithMany()
+                        .HasForeignKey("ToppingId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("FK__OrderDeta__Toppi__5AEE82B9"),
+                    l => l.HasOne<OrderDetail>().WithMany()
+                        .HasForeignKey("OrderDetailId")
+                        .OnDelete(DeleteBehavior.ClientSetNull)
+                        .HasConstraintName("FK__OrderDeta__Order__59FA5E80"),
+                    j =>
+                    {
+                        j.HasKey("OrderDetailId", "ToppingId").HasName("PK__OrderDet__9D59FFC20D35239C");
+                        j.ToTable("OrderDetailToppings");
+                        j.IndexerProperty<int>("OrderDetailId").HasColumnName("OrderDetailID");
+                        j.IndexerProperty<int>("ToppingId").HasColumnName("ToppingID");
+                    });
         });
 
         modelBuilder.Entity<Product>(entity =>
         {
-            entity.HasKey(e => e.ProductId).HasName("PK__Products__B40CC6EDBC9C80E8");
+            entity.HasKey(e => e.ProductId).HasName("PK__Products__B40CC6ED7C569036");
 
             entity.Property(e => e.ProductId).HasColumnName("ProductID");
             entity.Property(e => e.CategoryId).HasColumnName("CategoryID");
@@ -168,7 +178,7 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<ProductIngredient>(entity =>
         {
-            entity.HasKey(e => new { e.ProductId, e.IngredientId }).HasName("PK__ProductI__0FE62DCA708B3876");
+            entity.HasKey(e => new { e.ProductId, e.IngredientId }).HasName("PK__ProductI__0FE62DCAAB7160FE");
 
             entity.Property(e => e.ProductId).HasColumnName("ProductID");
             entity.Property(e => e.IngredientId).HasColumnName("IngredientID");
@@ -187,9 +197,9 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<Promotion>(entity =>
         {
-            entity.HasKey(e => e.PromotionId).HasName("PK__Promotio__52C42F2FF90CAB7B");
+            entity.HasKey(e => e.PromotionId).HasName("PK__Promotio__52C42F2F08EB5289");
 
-            entity.HasIndex(e => e.PromotionCode, "UQ__Promotio__A617E4B6FA756905").IsUnique();
+            entity.HasIndex(e => e.PromotionCode, "UQ__Promotio__A617E4B69F22F761").IsUnique();
 
             entity.Property(e => e.PromotionId).HasColumnName("PromotionID");
             entity.Property(e => e.DiscountPercentage).HasColumnType("decimal(5, 2)");
@@ -199,9 +209,9 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<Role>(entity =>
         {
-            entity.HasKey(e => e.RoleId).HasName("PK__Roles__8AFACE3A4C9C7DD0");
+            entity.HasKey(e => e.RoleId).HasName("PK__Roles__8AFACE3A0CA0EFAD");
 
-            entity.HasIndex(e => e.RoleName, "UQ__Roles__8A2B61600286F683").IsUnique();
+            entity.HasIndex(e => e.RoleName, "UQ__Roles__8A2B61608F3FBAEC").IsUnique();
 
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.RoleName).HasMaxLength(50);
@@ -209,14 +219,14 @@ public partial class PrnProjectCoffeeShopContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__Users__1788CCAC3AF09574");
+            entity.HasKey(e => e.UserId).HasName("PK__Users__1788CCAC21113AB2");
 
-            entity.HasIndex(e => e.Username, "UQ__Users__536C85E424503ABA").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__Users__A9D1053489A78EF9").IsUnique();
 
             entity.Property(e => e.UserId).HasColumnName("UserID");
+            entity.Property(e => e.Email).HasMaxLength(100);
             entity.Property(e => e.PasswordHash).HasMaxLength(255);
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
-            entity.Property(e => e.Username).HasMaxLength(50);
 
             entity.HasOne(d => d.Role).WithMany(p => p.Users)
                 .HasForeignKey(d => d.RoleId)

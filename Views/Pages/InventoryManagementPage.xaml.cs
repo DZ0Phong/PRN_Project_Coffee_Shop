@@ -8,7 +8,6 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
     public partial class InventoryManagementPage : Page
     {
         private readonly PrnProjectCoffeeShopContext _context = new PrnProjectCoffeeShopContext();
-        private Ingredient? _selectedIngredient;
 
         public InventoryManagementPage()
         {
@@ -23,43 +22,53 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void IngredientsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (IngredientsDataGrid.SelectedItem is Ingredient ingredient)
+            if (IngredientsDataGrid.SelectedItem is Ingredient selectedIngredient)
             {
-                _selectedIngredient = ingredient;
-                IngredientForm.DataContext = _selectedIngredient;
+                IngredientNameTextBox.Text = selectedIngredient.IngredientName;
+                QuantityTextBox.Text = selectedIngredient.QuantityInStock.ToString();
+                UnitTextBox.Text = selectedIngredient.Unit;
+                ThresholdTextBox.Text = selectedIngredient.WarningThreshold.ToString();
+                ExpiryDatePicker.SelectedDate = selectedIngredient.ExpiryDate.HasValue ? new DateTime(selectedIngredient.ExpiryDate.Value.Year, selectedIngredient.ExpiryDate.Value.Month, selectedIngredient.ExpiryDate.Value.Day) : (DateTime?)null;
             }
         }
 
         private void NewButton_Click(object sender, RoutedEventArgs e)
         {
-            _selectedIngredient = new Ingredient();
-            IngredientForm.DataContext = _selectedIngredient;
+            IngredientNameTextBox.Clear();
+            QuantityTextBox.Clear();
+            UnitTextBox.Clear();
+            ThresholdTextBox.Clear();
+            ExpiryDatePicker.SelectedDate = null;
             IngredientsDataGrid.SelectedItem = null;
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedIngredient == null) return;
-
-            // Add validation for parsing
-            _selectedIngredient.IngredientName = IngredientNameTextBox.Text;
-            _selectedIngredient.QuantityInStock = decimal.Parse(QuantityTextBox.Text);
-            _selectedIngredient.Unit = UnitTextBox.Text;
-            _selectedIngredient.WarningThreshold = decimal.Parse(ThresholdTextBox.Text);
-            _selectedIngredient.ExpiryDate = ExpiryDatePicker.SelectedDate;
-
-            if (_selectedIngredient.IngredientId == 0)
+            if (IngredientsDataGrid.SelectedItem is Ingredient selectedIngredient)
             {
-                _context.Ingredients.Add(_selectedIngredient);
+                // Update existing ingredient
+                selectedIngredient.IngredientName = IngredientNameTextBox.Text;
+                selectedIngredient.QuantityInStock = decimal.Parse(QuantityTextBox.Text);
+                selectedIngredient.Unit = UnitTextBox.Text;
+                selectedIngredient.WarningThreshold = decimal.Parse(ThresholdTextBox.Text);
+                selectedIngredient.ExpiryDate = ExpiryDatePicker.SelectedDate.HasValue ? DateOnly.FromDateTime(ExpiryDatePicker.SelectedDate.Value) : (DateOnly?)null;
+                _context.Ingredients.Update(selectedIngredient);
             }
             else
             {
-                _context.Ingredients.Update(_selectedIngredient);
+                // Add new ingredient
+                var newIngredient = new Ingredient
+                {
+                    IngredientName = IngredientNameTextBox.Text,
+                    QuantityInStock = decimal.Parse(QuantityTextBox.Text),
+                    Unit = UnitTextBox.Text,
+                    WarningThreshold = decimal.Parse(ThresholdTextBox.Text),
+                    ExpiryDate = ExpiryDatePicker.SelectedDate.HasValue ? DateOnly.FromDateTime(ExpiryDatePicker.SelectedDate.Value) : (DateOnly?)null
+                };
+                _context.Ingredients.Add(newIngredient);
             }
-
             _context.SaveChanges();
             LoadIngredients();
-            MessageBox.Show("Ingredient saved successfully.", "Success");
         }
     }
 }

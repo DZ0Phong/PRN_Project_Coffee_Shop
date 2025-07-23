@@ -19,9 +19,12 @@ namespace PRN_Project_Coffee_Shop
 
         private void SetupUIBasedOnRole()
         {
+            // Display user info in the status bar
+            UserInfoTextBlock.Text = $"User: {_currentUser.Email} | Role: {_currentUser.Role.RoleName}";
+
             // Using RoleID for checking. 1 for Admin, 2 for Staff.
             // It's better to check by RoleName for readability, but this requires an Include() in the login query.
-            if (_currentUser.RoleId == 1) // Admin
+            if (_currentUser.Role.RoleName == "Admin")
             {
                 MenuManagementButton.Visibility = Visibility.Visible;
                 FinancialsButton.Visibility = Visibility.Visible;
