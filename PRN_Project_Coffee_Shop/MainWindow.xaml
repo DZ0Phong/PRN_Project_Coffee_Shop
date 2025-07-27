@@ -1,0 +1,46 @@
+﻿<Window x:Class="PRN_Project_Coffee_Shop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PRN_Project_Coffee_Shop"
+        mc:Ignorable="d"
+        Title="Coffee Shop Management" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Navigation Panel -->
+        <StackPanel Grid.Column="0" Grid.Row="0" Background="#f0f0f0">
+            <TextBlock Text="Coffee Shop" FontSize="20" FontWeight="Bold" Margin="10" HorizontalAlignment="Center"/>
+            <Button x:Name="OrderManagementButton" Content="Create Order" Margin="10,5" Click="OrderManagementButton_Click"/>
+            <Button x:Name="OrderStatusButton" Content="Order Status" Margin="10,5" Click="OrderStatusButton_Click"/>
+            <Button x:Name="CustomerManagementButton" Content="Customer Management" Margin="10,5" Click="CustomerManagementButton_Click"/>
+            <Button x:Name="InventoryManagementButton" Content="Inventory Management" Margin="10,5" Click="InventoryManagementButton_Click"/>
+            
+            <!-- Admin-only buttons -->
+            <Button x:Name="MenuManagementButton" Content="Menu Management" Margin="10,5" Click="MenuManagementButton_Click" Visibility="Collapsed"/>
+            <Button x:Name="FinancialsButton" Content="Financials" Margin="10,5" Click="FinancialsButton_Click" Visibility="Collapsed"/>
+            <Button x:Name="EmployeeManagementButton" Content="Employee Management" Margin="10,5" Click="EmployeeManagementButton_Click" Visibility="Collapsed"/>
+            
+            <Button x:Name="LogoutButton" Content="Logout" Margin="10,20,10,5" VerticalAlignment="Bottom" Click="LogoutButton_Click"/>
+        </StackPanel>
+
+        <!-- Content Area -->
+        <Frame x:Name="MainFrame" Grid.Column="1" Grid.Row="0" NavigationUIVisibility="Hidden"/>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="1" Grid.ColumnSpan="2">
+            <StatusBarItem>
+                <TextBlock x:Name="UserInfoTextBlock" Margin="5,0"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
