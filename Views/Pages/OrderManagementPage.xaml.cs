@@ -19,6 +19,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         private readonly ObservableCollection<OrderDetail> _currentOrderItems = new ObservableCollection<OrderDetail>();
         private readonly User _currentUser;
         private List<Product> _toppings;
+        private Promotion _appliedPromotion = null;
 
         public OrderManagementPage(User currentUser)
         {
@@ -174,7 +175,51 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 decimal toppingsTotal = item.Toppings.Sum(t => t.Price);
                 total += itemTotal + (toppingsTotal * item.Quantity);
             }
-            TotalAmountTextBlock.Text = $"Total: {total:N0} VND";
+
+            if (_appliedPromotion != null)
+            {
+                decimal discountAmount = total * (_appliedPromotion.DiscountPercentage / 100);
+                decimal discountedTotal = total - discountAmount;
+                TotalAmountTextBlock.Text = $"Total: {discountedTotal:N0} VND (after {_appliedPromotion.DiscountPercentage}% discount)";
+            }
+            else
+            {
+                TotalAmountTextBlock.Text = $"Total: {total:N0} VND";
+            }
+        }
+
+        private void ApplyPromotionButton_Click(object sender, RoutedEventArgs e)
+        {
+            string code = PromotionCodeTextBox.Text;
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                MessageBox.Show("Please enter a promotion code.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var promotion = _context.Promotions.FirstOrDefault(p => p.PromotionCode == code);
+
+            if (promotion == null)
+            {
+                MessageBox.Show("Invalid promotion code.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            if (!promotion.IsActive || promotion.IsUsed)
+            {
+                MessageBox.Show("This promotion is no longer active or has already been used.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            if (DateOnly.FromDateTime(DateTime.Now) < promotion.StartDate || DateOnly.FromDateTime(DateTime.Now) > promotion.EndDate)
+            {
+                MessageBox.Show("This promotion is not valid at this time.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            _appliedPromotion = promotion;
+            PromotionCodeTextBox.IsEnabled = false;
+            ApplyPromotionButton.IsEnabled = false;
+            MessageBox.Show($"Promotion '{promotion.Description}' applied successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateOrderTotal();
         }
 
         private void ConfirmOrderButton_Click(object sender, RoutedEventArgs e)
@@ -190,98 +235,132 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 return;
             }
 
-            try
+            using (var transaction = _context.Database.BeginTransaction())
             {
-                decimal totalAmount = _currentOrderItems.Sum(item => (item.Price + item.Toppings.Sum(t => t.Price)) * item.Quantity);
-
-                var newOrder = new Order
+                try
                 {
-                    UserId = _currentUser.UserId,
-                    OrderDate = DateTime.Now,
-                    TotalAmount = totalAmount,
-                    Status = "Pending",
-                    TableNumber = TableComboBox.SelectedItem.ToString(),
-                    IsDelivery = TableComboBox.SelectedItem.ToString() == "Ship",
-                    DeliveryNotes = DeliveryNotesTextBox.Text,
-                    PromotionCode = PromotionCodeTextBox.Text,
-                    OrderDetails = new List<OrderDetail>(_currentOrderItems.Select(od => new OrderDetail
-                    {
-                        ProductId = od.ProductId,
-                        Quantity = od.Quantity,
-                        Price = od.Price,
-                        SugarPercent = od.SugarPercent,
-                        IcePercent = od.IcePercent,
-                        Toppings = new List<Product>(od.Toppings)
-                    }))
-                };
+                    decimal originalTotal = _currentOrderItems.Sum(item => (item.Price + item.Toppings.Sum(t => t.Price)) * item.Quantity);
+                    decimal finalTotal = originalTotal;
 
-                if (!string.IsNullOrWhiteSpace(CustomerEmailTextBox.Text))
-                {
-                    var customer = _context.Customers.Include(c => c.Orders).FirstOrDefault(c => c.Email == CustomerEmailTextBox.Text);
-                    bool isNewCustomer = customer == null;
-                    if (isNewCustomer)
+                    if (_appliedPromotion != null)
                     {
-                        customer = new Customer { Email = CustomerEmailTextBox.Text, Points = 0 };
-                        _context.Customers.Add(customer);
+                        finalTotal = originalTotal - (originalTotal * (_appliedPromotion.DiscountPercentage / 100));
                     }
 
-                    newOrder.Customer = customer;
-
-                    // Calculate points
-                    int pointsToAdd = 0;
-                    foreach (var item in _currentOrderItems)
+                    var newOrder = new Order
                     {
-                        var categoryName = _context.Products
-                                                  .Where(p => p.ProductId == item.ProductId)
-                                                  .Select(p => p.Category.CategoryName)
-                                                  .FirstOrDefault();
+                        UserId = _currentUser.UserId,
+                        OrderDate = DateTime.Now,
+                        TotalAmount = finalTotal,
+                        Status = "Pending",
+                        TableNumber = TableComboBox.SelectedItem.ToString(),
+                        IsDelivery = TableComboBox.SelectedItem.ToString() == "Ship",
+                        DeliveryNotes = DeliveryNotesTextBox.Text,
+                        PromotionCode = _appliedPromotion?.PromotionCode,
+                        OrderDetails = new List<OrderDetail>() // Initialize empty
+                    };
 
-                        if (categoryName == "Cà Phê" || categoryName == "Trà")
+                    // Create new OrderDetail entities from the view model items
+                    foreach (var itemVM in _currentOrderItems)
+                    {
+                        var newDetail = new OrderDetail
                         {
-                            pointsToAdd += 14 * item.Quantity;
-                        }
-                        else if (categoryName == "Bánh")
+                            ProductId = itemVM.ProductId,
+                            Quantity = itemVM.Quantity,
+                            Price = itemVM.Price,
+                            SugarPercent = itemVM.SugarPercent,
+                            IcePercent = itemVM.IcePercent,
+                            Toppings = new List<Product>() // Initialize empty
+                        };
+
+                        // Re-fetch topping entities to ensure correct tracking
+                        var toppingIds = itemVM.Toppings.Select(t => t.ProductId).ToList();
+                        var trackedToppings = _context.Products.Where(p => toppingIds.Contains(p.ProductId)).ToList();
+                        foreach (var topping in trackedToppings)
                         {
-                            pointsToAdd += 23 * item.Quantity;
+                            newDetail.Toppings.Add(topping);
                         }
+                        newOrder.OrderDetails.Add(newDetail);
                     }
 
-                    customer.Points = (customer.Points ?? 0) + pointsToAdd;
 
-                    // Check for promotion
-                    if (customer.Points >= 100)
+                    if (!string.IsNullOrWhiteSpace(CustomerEmailTextBox.Text))
                     {
-                        int promotionsToCreate = customer.Points.Value / 100;
-                        for (int i = 0; i < promotionsToCreate; i++)
+                        var customer = _context.Customers.FirstOrDefault(c => c.Email == CustomerEmailTextBox.Text);
+                        bool isNewCustomer = customer == null;
+
+                        if (isNewCustomer)
                         {
-                            customer.Points -= 100;
-                            CreateAndSendPromotion(customer);
+                            customer = new Customer { Email = CustomerEmailTextBox.Text, CustomerName = "New Customer", Points = 0 };
+                            _context.Customers.Add(customer);
                         }
-                    }
-                     if (isNewCustomer)
-                    {
-                        _context.Customers.Add(customer);
-                    }
-                    else
-                    {
+                        
+                        newOrder.Customer = customer;
+
+                        int pointsToAdd = 0;
+                        foreach (var item in newOrder.OrderDetails)
+                        {
+                            var product = _context.Products.Include(p => p.Category).First(p => p.ProductId == item.ProductId);
+                            if (product.Category.CategoryName == "Cà Phê" || product.Category.CategoryName == "Trà")
+                            {
+                                pointsToAdd += 5 * item.Quantity; // Reduced from 14
+                            }
+                            else if (product.Category.CategoryName == "Bánh")
+                            {
+                                pointsToAdd += 8 * item.Quantity; // Reduced from 23
+                            }
+                        }
+                        customer.Points = (customer.Points ?? 0) + pointsToAdd;
                         _context.Customers.Update(customer);
+
+                        // Save here to get CustomerID if new
+                        _context.SaveChanges(); 
+
+                        if (customer.Points >= 100)
+                        {
+                            int promotionsToCreate = customer.Points.Value / 100;
+                            for (int i = 0; i < promotionsToCreate; i++)
+                            {
+                                customer.Points -= 100;
+                                CreateAndSendPromotion(customer);
+                            }
+                            _context.Customers.Update(customer);
+                        }
                     }
+
+                    if (_appliedPromotion != null)
+                    {
+                        var promotionToUpdate = _context.Promotions.First(p => p.PromotionId == _appliedPromotion.PromotionId);
+                        promotionToUpdate.IsUsed = true;
+                        promotionToUpdate.IsActive = false;
+                        _context.Promotions.Update(promotionToUpdate);
+                    }
+
+                    _context.Orders.Add(newOrder);
+                    _context.SaveChanges();
+
+                    transaction.Commit();
+
+                    MessageBox.Show("Order successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    CancelOrderButton_Click(sender, e);
                 }
-
-                _context.Orders.Add(newOrder);
-                _context.SaveChanges();
-
-                MessageBox.Show("Order successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                CancelOrderButton_Click(sender, e);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"An error occurred while confirming the order: {ex.InnerException?.Message ?? ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    MessageBox.Show($"An error occurred: {ex.InnerException?.Message ?? ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
         private void CreateAndSendPromotion(Customer customer)
         {
+            // This check is crucial for new customers
+            if (customer.CustomerId == 0)
+            {
+                 MessageBox.Show("Cannot create promotion for a customer that hasn't been saved to the database yet.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                 return;
+            }
+
             var newPromotion = new Promotion
             {
                 PromotionCode = $"DISCOUNT20_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
@@ -328,6 +407,9 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         private void CancelOrderButton_Click(object sender, RoutedEventArgs e)
         {
             _currentOrderItems.Clear();
+            _appliedPromotion = null;
+            PromotionCodeTextBox.IsEnabled = true;
+            ApplyPromotionButton.IsEnabled = true;
             UpdateOrderTotal();
             TableComboBox.SelectedIndex = -1;
             CustomerEmailTextBox.Clear();
