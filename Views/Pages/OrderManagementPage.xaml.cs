@@ -162,6 +162,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                         selectedItem.Toppings.Remove(topping);
                     }
                 }
+                selectedItem.RefreshTotalPrice();
                 UpdateOrderTotal();
             }
         }
@@ -419,6 +420,52 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             OptionsPanel.Visibility = Visibility.Collapsed;
         }
         
+        private void RemoveItemButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (OrderDataGrid.SelectedItem is OrderDetail selectedItem)
+            {
+                _currentOrderItems.Remove(selectedItem);
+                UpdateOrderTotal();
+                // Hide options panel if no item is selected anymore
+                if (OrderDataGrid.SelectedItem == null)
+                {
+                    OptionsPanel.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                MessageBox.Show("Please select an item to remove.", "No Item Selected", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private void OrderDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                if (e.Column is DataGridBoundColumn column && column.Binding is System.Windows.Data.Binding binding && binding.Path.Path == "Quantity")
+                {
+                    var orderDetail = e.Row.Item as OrderDetail;
+                    if (orderDetail != null)
+                    {
+                        // Use the Dispatcher to delay the check and potential removal
+                        // until after the DataGrid has finished its commit action.
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (orderDetail.Quantity == 0)
+                            {
+                                _currentOrderItems.Remove(orderDetail);
+                                if (_currentOrderItems.Count == 0)
+                                {
+                                    OptionsPanel.Visibility = Visibility.Collapsed;
+                                }
+                            }
+                            UpdateOrderTotal();
+                        }), System.Windows.Threading.DispatcherPriority.Background);
+                    }
+                }
+            }
+        }
+
         // Helper to find a child of a specific type in the visual tree.
         public static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {

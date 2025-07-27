@@ -28,6 +28,7 @@
                 <TextBlock Text="Search by Email/Name:" VerticalAlignment="Center"/>
                 <TextBox x:Name="SearchTextBox" Width="150" Margin="5,0"/>
                 <Button x:Name="SearchButton" Content="Search" Click="SearchButton_Click"/>
+                <Button x:Name="ResetButton" Content="Reset" Click="ResetButton_Click" Margin="5,0,0,0"/>
             </StackPanel>
 
             <DataGrid x:Name="CustomersDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" SelectionChanged="CustomersDataGrid_SelectionChanged" CellEditEnding="CustomersDataGrid_CellEditEnding">

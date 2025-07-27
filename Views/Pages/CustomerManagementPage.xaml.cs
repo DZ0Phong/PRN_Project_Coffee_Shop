@@ -23,16 +23,25 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         private void SearchButton_Click(object sender, System.Windows.RoutedEventArgs e)
         {
             string searchText = SearchTextBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(searchText))
+            var searchTerms = searchText.Split(new char[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            string normalizedSearchText = string.Join(" ", searchTerms);
+
+            if (string.IsNullOrWhiteSpace(normalizedSearchText))
             {
                 LoadCustomers();
             }
             else
             {
                 CustomersDataGrid.ItemsSource = _context.Customers
-                                                        .Where(c => c.Email.Contains(searchText) || c.CustomerName.Contains(searchText))
+                                                        .Where(c => c.Email.Contains(normalizedSearchText) || c.CustomerName.Contains(normalizedSearchText))
                                                         .ToList();
             }
+        }
+
+        private void ResetButton_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            SearchTextBox.Text = string.Empty;
+            LoadCustomers();
         }
 
         private void CustomersDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

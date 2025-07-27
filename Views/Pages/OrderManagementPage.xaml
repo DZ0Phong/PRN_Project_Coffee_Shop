@@ -24,7 +24,7 @@
                                 <ItemsControl ItemsSource="{Binding Products}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Click="AddToOrder_Click" Margin="5,2" HorizontalContentAlignment="Stretch">
+                                            <Button Click="AddToOrder_Click" Margin="2,1" Padding="5,3" HorizontalContentAlignment="Stretch">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
@@ -59,12 +59,13 @@
 
                 <!-- Current Order DataGrid -->
                 <DataGrid Grid.Column="0" x:Name="OrderDataGrid" AutoGenerateColumns="False" CanUserAddRows="False"
-                          ItemsSource="{Binding CurrentOrderItems}" SelectionChanged="OrderDataGrid_SelectionChanged">
+                          ItemsSource="{Binding CurrentOrderItems}" SelectionChanged="OrderDataGrid_SelectionChanged"
+                          CellEditEnding="OrderDataGrid_CellEditEnding">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Item" Binding="{Binding Product.ProductName}" Width="*"/>
-                        <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="Auto"/>
-                        <DataGridTextColumn Header="Price" Binding="{Binding Product.Price, StringFormat=N0}" Width="Auto"/>
-                        <DataGridTextColumn Header="Total" Binding="{Binding TotalPrice, StringFormat=N0}" Width="Auto"/>
+                        <DataGridTextColumn Header="Item" Binding="{Binding Product.ProductName}" Width="2*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Qty" Binding="{Binding Quantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                        <DataGridTextColumn Header="Price" Binding="{Binding Product.Price, StringFormat=N0}" Width="*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Total" Binding="{Binding TotalPrice, StringFormat=N0}" Width="*" IsReadOnly="True"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
@@ -127,7 +128,8 @@
                     </StackPanel>
                 </Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                    <Button Content="Confirm Order" Width="120" Click="ConfirmOrderButton_Click"/>
+                    <Button x:Name="RemoveItemButton" Content="Remove Item" Width="120" Click="RemoveItemButton_Click" Background="OrangeRed"/>
+                    <Button Content="Confirm Order" Width="120" Margin="10,0,0,0" Click="ConfirmOrderButton_Click"/>
                     <Button Content="Cancel Order" Width="120" Margin="10,0,0,0" Click="CancelOrderButton_Click"/>
                 </StackPanel>
             </StackPanel>

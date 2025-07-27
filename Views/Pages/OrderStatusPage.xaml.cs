@@ -52,43 +52,95 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 OrderDetailsDataGrid.ItemsSource = selectedOrder.OrderDetails;
                 CustomerNoteTextBlock.Text = string.IsNullOrWhiteSpace(selectedOrder.DeliveryNotes) ? "N/A" : selectedOrder.DeliveryNotes;
                 OrderDetailsNote.Text = $"Details for Order #{selectedOrder.OrderId}";
-            }
-        }
-
-        private void UpdateStatusButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (OrdersDataGrid.SelectedItem is Order selectedOrder)
-            {
-                if (StatusComboBox.SelectedItem is ComboBoxItem selectedStatusItem && selectedStatusItem.Content is string newStatus)
-                {
-                    var orderToUpdate = _context.Orders.Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.Category).Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).FirstOrDefault(o => o.OrderId == selectedOrder.OrderId);
-                    if (orderToUpdate != null)
-                    {
-                        if (orderToUpdate.Status == "Preparing" && (newStatus == "Completed" || newStatus == "Cancelled"))
-                        {
-                            // Do nothing, ingredients already deducted
-                        }
-                        else if (newStatus == "Preparing" && orderToUpdate.Status == "Pending")
-                        {
-                            DeductInventory(orderToUpdate);
-                        }
-
-                        orderToUpdate.Status = newStatus;
-                        _context.SaveChanges();
-                        
-                        LoadOrders(OrderDatePicker.SelectedDate);
-                        MessageBox.Show($"Order {orderToUpdate.OrderId} status updated to {newStatus}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("Please select a new status.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                }
+                UpdateStatusControls(selectedOrder);
             }
             else
             {
-                MessageBox.Show("Please select an order to update.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                UpdateStatusControls(null);
             }
+        }
+
+        private void UpdateStatusControls(Order? order)
+        {
+            // Default state: all disabled
+            PreparingRadioButton.IsEnabled = false;
+            CompletedRadioButton.IsEnabled = false;
+            CancelledRadioButton.IsEnabled = false;
+            UpdateStatusButton.IsEnabled = false;
+            CurrentStatusTextBlock.Text = "N/A";
+
+            // Uncheck all radio buttons
+            PreparingRadioButton.IsChecked = false;
+            CompletedRadioButton.IsChecked = false;
+            CancelledRadioButton.IsChecked = false;
+
+            if (order == null) return;
+
+            CurrentStatusTextBlock.Text = order.Status;
+
+            switch (order.Status)
+            {
+                case "Pending":
+                    PreparingRadioButton.IsEnabled = true;
+                    // Ship orders can be cancelled while pending
+                    if (order.IsDelivery)
+                    {
+                        CancelledRadioButton.IsEnabled = true;
+                    }
+                    UpdateStatusButton.IsEnabled = true;
+                    break;
+
+                case "Preparing":
+                    CompletedRadioButton.IsEnabled = true;
+                    UpdateStatusButton.IsEnabled = true;
+                    break;
+
+                // If Completed or Cancelled, all controls remain disabled
+                case "Completed":
+                case "Cancelled":
+                default:
+                    break;
+            }
+        }
+
+
+        private void UpdateStatusButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (OrdersDataGrid.SelectedItem is not Order selectedOrder)
+            {
+                MessageBox.Show("Please select an order to update.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string? newStatus = null;
+            if (PreparingRadioButton.IsChecked == true) newStatus = "Preparing";
+            else if (CompletedRadioButton.IsChecked == true) newStatus = "Completed";
+            else if (CancelledRadioButton.IsChecked == true) newStatus = "Cancelled";
+
+            if (string.IsNullOrEmpty(newStatus))
+            {
+                MessageBox.Show("Please select a new status.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var orderToUpdate = _context.Orders
+                                        .Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient)
+                                        .Include(o => o.OrderDetails).ThenInclude(od => od.Toppings)
+                                        .FirstOrDefault(o => o.OrderId == selectedOrder.OrderId);
+
+            if (orderToUpdate == null) return;
+
+            // Deduct inventory only when moving from Pending to Preparing
+            if (orderToUpdate.Status == "Pending" && newStatus == "Preparing")
+            {
+                DeductInventory(orderToUpdate);
+            }
+
+            orderToUpdate.Status = newStatus;
+            _context.SaveChanges();
+
+            LoadOrders(OrderDatePicker.SelectedDate);
+            MessageBox.Show($"Order {orderToUpdate.OrderId} status updated to {newStatus}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void DeductInventory(Order order)
