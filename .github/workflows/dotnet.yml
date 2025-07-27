@@ -39,4 +39,4 @@ jobs:
 
     # Runs the unit tests for the solution
     - name: Run Tests
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --configuration Release --no-build --verbosity normal
