@@ -16,7 +16,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- Product List -->
-        <DataGrid x:Name="ProductsDataGrid" Grid.Column="0" AutoGenerateColumns="False" CanUserAddRows="False" SelectionChanged="ProductsDataGrid_SelectionChanged">
+        <DataGrid x:Name="ProductsDataGrid" Grid.Column="0" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionChanged="ProductsDataGrid_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="ID" Binding="{Binding ProductId}" Width="Auto"/>
                 <DataGridTextColumn Header="Name" Binding="{Binding ProductName}" Width="*"/>
@@ -30,25 +30,26 @@
 
         <!-- Product Details Form -->
         <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="ProductForm" Margin="10,0,0,0">
+            <StackPanel x:Name="ProductForm" Margin="10,0,0,0" DataContext="{Binding SelectedItem, ElementName=ProductsDataGrid}">
                 <TextBlock Text="Product Details" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
                 
                 <TextBlock Text="Product Name:"/>
-                <TextBox x:Name="ProductNameTextBox" Margin="0,5,0,10"/>
+                <TextBox x:Name="ProductNameTextBox" Margin="0,5,0,10" Text="{Binding ProductName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                 <TextBlock Text="Category:"/>
-                <ComboBox x:Name="CategoryComboBox" Margin="0,5,0,10" DisplayMemberPath="CategoryName" SelectedValuePath="CategoryId"/>
+                <ComboBox x:Name="CategoryComboBox" Margin="0,5,0,10" DisplayMemberPath="CategoryName" SelectedValuePath="CategoryId"
+                          SelectedValue="{Binding CategoryId, Mode=TwoWay}"/>
 
                 <TextBlock Text="Price:"/>
-                <TextBox x:Name="PriceTextBox" Margin="0,5,0,10"/>
+                <TextBox x:Name="PriceTextBox" Margin="0,5,0,10" Text="{Binding Price, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                 <TextBlock Text="Image Path:"/>
-                <TextBox x:Name="ImagePathTextBox" Margin="0,5,0,10"/>
+                <TextBox x:Name="ImagePathTextBox" Margin="0,5,0,10" Text="{Binding ImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <CheckBox x:Name="IsOutOfStockCheckBox" Content="Is Out of Stock" Margin="0,5,0,10"/>
+                <CheckBox x:Name="IsOutOfStockCheckBox" Content="Is Out of Stock" Margin="0,5,0,10" IsChecked="{Binding IsOutOfStock, Mode=TwoWay}"/>
 
                 <TextBlock Text="Description:"/>
-                <TextBox x:Name="DescriptionTextBox" Margin="0,5,0,10" TextWrapping="Wrap" Height="60"/>
+                <TextBox x:Name="DescriptionTextBox" Margin="0,5,0,10" TextWrapping="Wrap" Height="60" Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                     <Button x:Name="NewButton" Content="New" Width="70" Click="NewButton_Click"/>

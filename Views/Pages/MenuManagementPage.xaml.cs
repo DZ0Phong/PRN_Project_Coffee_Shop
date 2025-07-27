@@ -30,44 +30,75 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void ProductsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ProductsDataGrid.SelectedItem is Product product)
+            _selectedProduct = ProductsDataGrid.SelectedItem as Product;
+            // The DataContext is now bound in XAML, but we can disable the form if nothing is selected
+            ProductForm.IsEnabled = _selectedProduct != null;
+            if (_selectedProduct == null)
             {
-                _selectedProduct = product;
+                // Clear the form by setting DataContext to null if selection is cleared
+                ProductForm.DataContext = null;
+            }
+            else
+            {
                 ProductForm.DataContext = _selectedProduct;
             }
         }
 
         private void NewButton_Click(object sender, RoutedEventArgs e)
         {
-            _selectedProduct = new Product();
+            _selectedProduct = new Product { Price = 0 }; // Create a new product instance
             ProductForm.DataContext = _selectedProduct;
-            ProductsDataGrid.SelectedItem = null;
+            ProductsDataGrid.SelectedItem = null; // Deselect the grid
+            ProductForm.IsEnabled = true;
+            ProductNameTextBox.Focus(); // Set focus to the first field
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedProduct == null) return;
-
-            // Manually update properties from TextBoxes because DataContext binding might not be enough
-            _selectedProduct.ProductName = ProductNameTextBox.Text;
-            _selectedProduct.Price = decimal.Parse(PriceTextBox.Text); // Add validation
-            _selectedProduct.CategoryId = (int)CategoryComboBox.SelectedValue;
-            _selectedProduct.ImagePath = ImagePathTextBox.Text;
-            _selectedProduct.IsOutOfStock = IsOutOfStockCheckBox.IsChecked ?? false;
-            _selectedProduct.Description = DescriptionTextBox.Text;
-
-            if (_selectedProduct.ProductId == 0) // It's a new product
+            if (_selectedProduct == null)
             {
-                _context.Products.Add(_selectedProduct);
-            }
-            else // It's an existing product
-            {
-                _context.Products.Update(_selectedProduct);
+                MessageBox.Show("No product selected or created.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
 
-            _context.SaveChanges();
-            LoadProducts();
-            MessageBox.Show("Product saved successfully.", "Success");
+            // Validation
+            if (string.IsNullOrWhiteSpace(_selectedProduct.ProductName))
+            {
+                MessageBox.Show("Product name cannot be empty.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            if (_selectedProduct.CategoryId == 0)
+            {
+                MessageBox.Show("Please select a category.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            // Price is already bound, no need for manual parsing. The binding will fail for non-decimal values.
+
+            try
+            {
+                if (_selectedProduct.ProductId == 0) // It's a new product
+                {
+                    _context.Products.Add(_selectedProduct);
+                }
+                else // It's an existing product
+                {
+                    // The context is already tracking the selected product, so changes will be saved.
+                    _context.Products.Update(_selectedProduct);
+                }
+
+                _context.SaveChanges();
+                LoadProducts();
+                MessageBox.Show("Product saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                ProductForm.IsEnabled = false;
+            }
+            catch (DbUpdateException ex)
+            {
+                MessageBox.Show($"An error occurred while saving: {ex.InnerException?.Message ?? ex.Message}", "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)

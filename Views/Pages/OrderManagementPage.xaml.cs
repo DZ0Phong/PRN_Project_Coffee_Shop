@@ -381,10 +381,12 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 string fromPassword = "slos bctt epxv osla";
 
                 MailMessage message = new MailMessage();
-                message.From = new MailAddress(fromMail);
-                message.Subject = "Your 20% Discount Code from Coffee Shop!";
+                message.From = new MailAddress(fromMail, "The Coffee Shop"); // Set sender display name
+                message.Subject = "Your 20% Discount Code from The Coffee Shop!";
                 message.To.Add(new MailAddress(customer.Email));
-                message.Body = $"<html><body><h3>Hello {customer.CustomerName ?? "Valued Customer"},</h3><p>Congratulations! You've earned a 20% discount on your next order. Use the code below:</p><h2>{newPromotion.PromotionCode}</h2><p>This code is valid for 6 months and can be used once.</p><p>Thank you for being a loyal customer!</p><p>Sincerely,<br/>The Coffee Shop Team</p></body></html>";
+
+                string customerGreetingName = string.IsNullOrWhiteSpace(customer.CustomerName) ? "Valued Customer" : customer.CustomerName;
+                message.Body = $"<html><body><h3>Hello {customerGreetingName},</h3><p>Congratulations! You've earned a 20% discount on your next order. Use the code below:</p><h2>{newPromotion.PromotionCode}</h2><p>This code is valid for 6 months and can be used once.</p><p>Thank you for being a loyal customer!</p><p>Sincerely,<br/>The Coffee Shop Team</p></body></html>";
                 message.IsBodyHtml = true;
 
                 var smtpClient = new SmtpClient("smtp.gmail.com")
