@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
+using System.Windows;
 
 namespace PRN_Project_Coffee_Shop.Views.Pages
 {
@@ -13,31 +14,77 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         public FinancialsPage()
         {
             InitializeComponent();
+            this.Loaded += FinancialsPage_Loaded;
+        }
+
+        private void FinancialsPage_Loaded(object sender, RoutedEventArgs e)
+        {
             ReportDatePicker.SelectedDate = DateTime.Today;
+            LoadDashboardData(DateTime.Today);
         }
 
         private void ReportDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ReportDatePicker.SelectedDate.HasValue)
             {
-                LoadReportForDate(ReportDatePicker.SelectedDate.Value);
+                LoadDashboardData(ReportDatePicker.SelectedDate.Value);
             }
         }
 
-        private void LoadReportForDate(DateTime date)
+        private void LoadDashboardData(DateTime selectedDate)
         {
-            var startDate = date.Date;
-            var endDate = startDate.AddDays(1);
+            // Date ranges
+            var todayStart = selectedDate.Date;
+            var todayEnd = todayStart.AddDays(1);
+            var monthStart = new DateTime(selectedDate.Year, selectedDate.Month, 1);
+            var monthEnd = monthStart.AddMonths(1);
 
-            var ordersForDay = _context.Orders
-                                       .Include(o => o.User)
-                                       .Where(o => o.Status == "Completed" && o.OrderDate >= startDate && o.OrderDate < endDate)
-                                       .ToList();
+            // --- Daily Stats for Selected Date ---
+            var ordersForSelectedDay = _context.Orders
+                                               .Where(o => o.OrderDate >= todayStart && o.OrderDate < todayEnd)
+                                               .ToList();
+            
+            decimal todaysRevenue = ordersForSelectedDay
+                                    .Where(o => o.Status == "Completed")
+                                    .Sum(o => o.TotalAmount);
 
-            RevenueDataGrid.ItemsSource = ordersForDay;
+            int dineInOrders = ordersForSelectedDay.Count(o => !o.IsDelivery);
+            int takeAwayOrders = ordersForSelectedDay.Count(o => o.IsDelivery);
+            int completedOrders = ordersForSelectedDay.Count(o => o.Status == "Completed");
+            int cancelledOrders = ordersForSelectedDay.Count(o => o.Status == "Cancelled");
 
-            decimal totalRevenue = ordersForDay.Sum(o => o.TotalAmount);
-            TotalRevenueTextBlock.Text = $"Total Revenue for {date:d}: {totalRevenue:N0} VND";
+            // --- Monthly Stats ---
+            var monthlyCompletedOrders = _context.Orders
+                                                 .Where(o => o.OrderDate >= monthStart && o.OrderDate < monthEnd && o.Status == "Completed")
+                                                 .ToList();
+            decimal totalMonthlyRevenue = monthlyCompletedOrders.Sum(o => o.TotalAmount);
+            
+            // Calculate salaries only for active (not locked) employees
+            decimal totalEmployeeSalaries = _context.Employees
+                                                    .Include(e => e.User)
+                                                    .Where(e => e.User != null && !e.User.IsLocked)
+                                                    .Sum(emp => emp.Salary);
+                                                    
+            decimal monthlyNetRevenue = totalMonthlyRevenue - totalEmployeeSalaries;
+
+            // --- Most Popular Item for Selected Date ---
+            var mostPopularItem = _context.OrderDetails
+                                          .Where(od => od.Order.OrderDate >= todayStart && od.Order.OrderDate < todayEnd)
+                                          .GroupBy(od => od.Product.ProductName)
+                                          .Select(g => new { ProductName = g.Key, Quantity = g.Sum(od => od.Quantity) })
+                                          .OrderByDescending(g => g.Quantity)
+                                          .FirstOrDefault();
+
+            // --- Update UI ---
+            TodaysRevenueTextBlock.Text = $"{todaysRevenue:N0} VND";
+            MonthlyNetRevenueTextBlock.Text = $"{monthlyNetRevenue:N0} VND";
+            TotalSalariesTextBlock.Text = $"{totalEmployeeSalaries:N0} VND";
+            MostPopularItemTextBlock.Text = mostPopularItem?.ProductName ?? "N/A";
+
+            DineInOrdersTextBlock.Text = dineInOrders.ToString();
+            TakeAwayOrdersTextBlock.Text = takeAwayOrders.ToString();
+            CompletedOrdersTextBlock.Text = completedOrders.ToString();
+            CancelledOrdersTextBlock.Text = cancelledOrders.ToString();
         }
     }
 }

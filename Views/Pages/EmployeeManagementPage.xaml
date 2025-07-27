@@ -22,7 +22,15 @@
                 <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="*"/>
                 <DataGridTextColumn Header="Position" Binding="{Binding Position}" Width="*"/>
                 <DataGridTextColumn Header="Salary" Binding="{Binding Salary, StringFormat={}{0:N0}}" Width="Auto"/>
-                <DataGridTextColumn Header="Username" Binding="{Binding User.Username}" Width="*"/>
+                <DataGridTextColumn Header="Email" Binding="{Binding User.Email}" Width="*"/>
+                <DataGridCheckBoxColumn Header="Locked" Binding="{Binding User.IsLocked}" Width="Auto" IsReadOnly="True"/>
+                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="Toggle Lock" Click="LockButton_Click" CommandParameter="{Binding}"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -42,13 +50,17 @@
                 <TextBlock Text="Salary:"/>
                 <TextBox x:Name="SalaryTextBox" Margin="0,5,0,10"/>
 
-                <TextBlock Text="User Account:"/>
-                <ComboBox x:Name="UserComboBox" Margin="0,5,0,10" DisplayMemberPath="Username" SelectedValuePath="UserId"/>
+                <TextBlock Text="Email:"/>
+                <TextBox x:Name="EmailTextBox" Margin="0,5,0,10"/>
+
+                <TextBlock Text="Password:"/>
+                <PasswordBox x:Name="PasswordBox" Margin="0,5,0,10"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                     <Button x:Name="NewButton" Content="New" Width="70" Click="NewButton_Click"/>
                     <Button x:Name="SaveButton" Content="Save" Width="70" Margin="5,0" Click="SaveButton_Click"/>
                 </StackPanel>
+                <Button x:Name="ResetPasswordButton" Content="Reset Password" Margin="0,5,0,0" Click="ResetPasswordButton_Click"/>
             </StackPanel>
         </ScrollViewer>
     </Grid>

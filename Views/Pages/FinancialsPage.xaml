@@ -5,33 +5,97 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
       xmlns:local="clr-namespace:PRN_Project_Coffee_Shop.Views.Pages"
       mc:Ignorable="d" 
-      d:DesignHeight="550" d:DesignWidth="800"
+      d:DesignHeight="600" d:DesignWidth="800"
       Title="Financials">
 
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-        <TextBlock Text="Financial Report" FontSize="18" FontWeight="Bold" Margin="5"/>
+            <!-- Header -->
+            <TextBlock Grid.Row="0" Text="Financial Dashboard" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="5">
-            <TextBlock Text="Select Date:" VerticalAlignment="Center"/>
-            <DatePicker x:Name="ReportDatePicker" Width="150" Margin="5,0" SelectedDateChanged="ReportDatePicker_SelectedDateChanged"/>
-        </StackPanel>
+            <!-- Date Picker -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
+                <TextBlock Text="Select Date:" VerticalAlignment="Center" FontSize="14"/>
+                <DatePicker x:Name="ReportDatePicker" Width="150" Margin="10,0" SelectedDateChanged="ReportDatePicker_SelectedDateChanged"/>
+            </StackPanel>
 
-        <DataGrid x:Name="RevenueDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Order ID" Binding="{Binding OrderId}" Width="Auto"/>
-                <DataGridTextColumn Header="Time" Binding="{Binding OrderDate, StringFormat='T'}" Width="*"/>
-                <DataGridTextColumn Header="Staff" Binding="{Binding User.Username}" Width="*"/>
-                <DataGridTextColumn Header="Total" Binding="{Binding TotalAmount, StringFormat={}{0:N0} VND}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
+            <!-- Key Metrics -->
+            <Grid Grid.Row="2" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TotalRevenueTextBlock" Grid.Row="3" Text="Total Revenue for Selected Date: 0 VND" FontSize="16" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,10,5,0"/>
-    </Grid>
+                <Border Grid.Row="0" Grid.Column="0" Background="#F0F0F0" CornerRadius="5" Padding="15" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Revenue (Selected Day)" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="TodaysRevenueTextBlock" Text="0 VND" FontSize="22" FontWeight="Bold" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="0" Grid.Column="1" Background="#F0F0F0" CornerRadius="5" Padding="15" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="This Month's Net Revenue" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="MonthlyNetRevenueTextBlock" Text="0 VND" FontSize="22" FontWeight="Bold" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="1" Grid.Column="0" Background="#F0F0F0" CornerRadius="5" Padding="15" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Total Employee Salaries (Monthly)" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="TotalSalariesTextBlock" Text="0 VND" FontSize="22" FontWeight="Bold" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+                
+                <Border Grid.Row="1" Grid.Column="1" Background="#F0F0F0" CornerRadius="5" Padding="15" Margin="5">
+                    <StackPanel>
+                        <TextBlock Text="Most Popular Item (Selected Day)" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="MostPopularItemTextBlock" Text="N/A" FontSize="22" FontWeight="Bold" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Order Statistics -->
+            <GroupBox Grid.Row="3" Header="Order Statistics for Selected Date" FontSize="16" FontWeight="Bold" Margin="0,0,0,20">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock Text="Dine-In" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="DineInOrdersTextBlock" Text="0" FontSize="28" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="Take-Away" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="TakeAwayOrdersTextBlock" Text="0" FontSize="28" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock Text="Completed" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="CompletedOrdersTextBlock" Text="0" FontSize="28" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                        <TextBlock Text="Cancelled" FontSize="14" Foreground="#555"/>
+                        <TextBlock x:Name="CancelledOrdersTextBlock" Text="0" FontSize="28" FontWeight="Bold"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+            
+        </Grid>
+    </ScrollViewer>
 </Page>
