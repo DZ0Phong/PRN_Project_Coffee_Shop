@@ -62,11 +62,20 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         {
             if ((sender as Button)?.DataContext is Product productToAdd)
             {
+                // Correct real-time check: count existing items in the cart + the new one.
+                int quantityInCart = _currentOrderItems.Count(item => item.ProductId == productToAdd.ProductId);
+                if (!CheckIngredientAvailability(productToAdd, quantityInCart + 1))
+                {
+                    MessageBox.Show($"Sorry, you cannot add more '{productToAdd.ProductName}'. Not enough ingredients in stock.", "Out of Stock", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Revert to original logic: always add a new item for individual customization.
                 var newOrderItem = new OrderDetail
                 {
                     ProductId = productToAdd.ProductId,
                     Product = productToAdd,
-                    Quantity = 1,
+                    Quantity = 1, // Always 1 for a new line item
                     Price = productToAdd.Price,
                     SugarPercent = 100,
                     IcePercent = 100
@@ -75,6 +84,69 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 UpdateOrderTotal();
                 OrderDataGrid.SelectedItem = newOrderItem;
             }
+        }
+
+        private bool CheckIngredientAvailability(Product product, int quantity)
+        {
+            var reservedStock = GetReservedStock();
+            var productIngredients = _context.ProductIngredients
+                                             .Include(pi => pi.Ingredient)
+                                             .Where(pi => pi.ProductId == product.ProductId)
+                                             .ToList();
+
+            foreach (var pi in productIngredients)
+            {
+                decimal reserved = reservedStock.GetValueOrDefault(pi.IngredientId, 0);
+                decimal effectiveStock = pi.Ingredient.QuantityInStock - reserved;
+
+                if (effectiveStock < (pi.QuantityRequired * quantity))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private Dictionary<int, decimal> GetReservedStock()
+        {
+            var reservedStock = new Dictionary<int, decimal>();
+            var pendingOrders = _context.Orders
+                                        .Include(o => o.OrderDetails)
+                                            .ThenInclude(od => od.Product)
+                                                .ThenInclude(p => p.ProductIngredients)
+                                        .Include(o => o.OrderDetails)
+                                            .ThenInclude(od => od.Toppings)
+                                                .ThenInclude(t => t.ProductIngredients)
+                                        .Where(o => o.Status == "Pending")
+                                        .ToList();
+
+            foreach (var order in pendingOrders)
+            {
+                foreach (var detail in order.OrderDetails)
+                {
+                    // Main product ingredients
+                    foreach (var pi in detail.Product.ProductIngredients)
+                    {
+                        if (reservedStock.ContainsKey(pi.IngredientId))
+                            reservedStock[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
+                        else
+                            reservedStock[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
+                    }
+
+                    // Toppings ingredients
+                    foreach (var topping in detail.Toppings)
+                    {
+                        foreach (var pi in topping.ProductIngredients)
+                        {
+                            if (reservedStock.ContainsKey(pi.IngredientId))
+                                reservedStock[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
+                            else
+                                reservedStock[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
+                        }
+                    }
+                }
+            }
+            return reservedStock;
         }
 
         private void OrderDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -236,6 +308,20 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 return;
             }
 
+            // Final availability check before confirming
+            foreach (var item in _currentOrderItems)
+            {
+                if (!CheckIngredientAvailability(item.Product, item.Quantity))
+                {
+                    MessageBox.Show($"Sorry, '{item.Product.ProductName}' has become unavailable in the quantity you requested.", "Stock Changed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    item.Product.IsOutOfStock = true;
+                    _context.Products.Update(item.Product);
+                    _context.SaveChanges();
+                    LoadInitialData(); // Refresh menu
+                    return;
+                }
+            }
+
             using (var transaction = _context.Database.BeginTransaction())
             {
                 try
@@ -337,10 +423,15 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                         _context.Promotions.Update(promotionToUpdate);
                     }
 
+                    // DO NOT deduct ingredients here. This will be done in OrderStatusPage.
                     _context.Orders.Add(newOrder);
                     _context.SaveChanges();
 
                     transaction.Commit();
+
+                    // Post-order availability check
+                    CheckAndUpdateAllProductAvailability();
+                    LoadInitialData(); // Refresh menu
 
                     MessageBox.Show("Order successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                     CancelOrderButton_Click(sender, e);
@@ -438,34 +529,6 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
         }
 
-        private void OrderDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            if (e.EditAction == DataGridEditAction.Commit)
-            {
-                if (e.Column is DataGridBoundColumn column && column.Binding is System.Windows.Data.Binding binding && binding.Path.Path == "Quantity")
-                {
-                    var orderDetail = e.Row.Item as OrderDetail;
-                    if (orderDetail != null)
-                    {
-                        // Use the Dispatcher to delay the check and potential removal
-                        // until after the DataGrid has finished its commit action.
-                        Dispatcher.BeginInvoke(new Action(() =>
-                        {
-                            if (orderDetail.Quantity == 0)
-                            {
-                                _currentOrderItems.Remove(orderDetail);
-                                if (_currentOrderItems.Count == 0)
-                                {
-                                    OptionsPanel.Visibility = Visibility.Collapsed;
-                                }
-                            }
-                            UpdateOrderTotal();
-                        }), System.Windows.Threading.DispatcherPriority.Background);
-                    }
-                }
-            }
-        }
-
         // Helper to find a child of a specific type in the visual tree.
         public static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
@@ -482,6 +545,17 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 }
             }
             return null;
+        }
+
+        private void CheckAndUpdateAllProductAvailability()
+        {
+            var allProducts = _context.Products.Include(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).ToList();
+            foreach (var product in allProducts)
+            {
+                product.IsOutOfStock = !CheckIngredientAvailability(product, 1);
+                _context.Products.Update(product);
+            }
+            _context.SaveChanges();
         }
     }
 

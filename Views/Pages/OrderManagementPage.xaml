@@ -59,11 +59,10 @@
 
                 <!-- Current Order DataGrid -->
                 <DataGrid Grid.Column="0" x:Name="OrderDataGrid" AutoGenerateColumns="False" CanUserAddRows="False"
-                          ItemsSource="{Binding CurrentOrderItems}" SelectionChanged="OrderDataGrid_SelectionChanged"
-                          CellEditEnding="OrderDataGrid_CellEditEnding">
+                          ItemsSource="{Binding CurrentOrderItems}" SelectionChanged="OrderDataGrid_SelectionChanged">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Item" Binding="{Binding Product.ProductName}" Width="2*" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Qty" Binding="{Binding Quantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="Auto"/>
+                        <DataGridTextColumn Header="Qty" Binding="{Binding Quantity}" Width="Auto" IsReadOnly="True"/>
                         <DataGridTextColumn Header="Price" Binding="{Binding Product.Price, StringFormat=N0}" Width="*" IsReadOnly="True"/>
                         <DataGridTextColumn Header="Total" Binding="{Binding TotalPrice, StringFormat=N0}" Width="*" IsReadOnly="True"/>
                     </DataGrid.Columns>

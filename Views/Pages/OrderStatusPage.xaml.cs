@@ -156,26 +156,47 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void DeductInventory(Order order)
         {
+            // This check is crucial to prevent re-deduction on refresh or error.
+            if (order.Status != "Pending") return;
+
+            var itemsToDeduct = new Dictionary<int, decimal>();
+
+            // Consolidate all required ingredients from the order
             foreach (var detail in order.OrderDetails)
             {
-                // Deduct ingredients for the main product
-                foreach (var productIngredient in detail.Product.ProductIngredients)
+                // Main product ingredients
+                foreach (var pi in detail.Product.ProductIngredients)
                 {
-                    var ingredient = _context.Ingredients.Find(productIngredient.IngredientId);
-                    if (ingredient != null)
-                    {
-                        ingredient.QuantityInStock -= (decimal)(productIngredient.QuantityRequired * detail.Quantity);
-                    }
+                    if (itemsToDeduct.ContainsKey(pi.IngredientId))
+                        itemsToDeduct[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
+                    else
+                        itemsToDeduct[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
                 }
 
-                // Deduct ingredients for toppings
+                // Toppings ingredients
                 foreach (var topping in detail.Toppings)
                 {
-                    var ingredient = _context.Ingredients.Find(topping.ProductId); // Assuming topping is a product with inventory
-                    if (ingredient != null)
+                    // Eagerly load topping ingredients if not already loaded
+                    var toppingIngredients = _context.ProductIngredients
+                                                     .Where(pi => pi.ProductId == topping.ProductId)
+                                                     .ToList();
+                    foreach (var pi in toppingIngredients)
                     {
-                        ingredient.QuantityInStock -= detail.Quantity; // Assuming 1 topping unit per drink
+                        if (itemsToDeduct.ContainsKey(pi.IngredientId))
+                            itemsToDeduct[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
+                        else
+                            itemsToDeduct[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
                     }
+                }
+            }
+
+            // Perform the deduction
+            foreach (var item in itemsToDeduct)
+            {
+                var ingredient = _context.Ingredients.Find(item.Key);
+                if (ingredient != null)
+                {
+                    ingredient.QuantityInStock -= item.Value;
                 }
             }
         }

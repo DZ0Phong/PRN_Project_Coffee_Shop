@@ -156,3 +156,5 @@ D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop
 D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop\obj\Debug\net8.0-windows\Views\Pages\EmployeeManagementPage.g.cs
 D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop\obj\Debug\net8.0-windows\Views\Pages\EmployeeManagementPage.baml
 D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop\obj\Debug\net8.0-windows\PRN_Project_Coffee_Shop.sourcelink.json
+D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop\obj\Debug\net8.0-windows\Views\IngredientSelectionWindow.baml
+D:\FU Learning\Summer2025\PRN212\PRN_Project_Coffee_Shop\PRN_Project_Coffee_Shop\obj\Debug\net8.0-windows\Views\IngredientSelectionWindow.g.cs

@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using PRN_Project_Coffee_Shop.Models;
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -44,13 +46,25 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!decimal.TryParse(QuantityTextBox.Text, out decimal quantity) || !decimal.TryParse(ThresholdTextBox.Text, out decimal threshold))
+            {
+                MessageBox.Show("Please enter valid numbers for quantity and threshold.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (quantity < 0)
+            {
+                MessageBox.Show("Stock quantity cannot be negative.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             if (IngredientsDataGrid.SelectedItem is Ingredient selectedIngredient)
             {
                 // Update existing ingredient
                 selectedIngredient.IngredientName = IngredientNameTextBox.Text;
-                selectedIngredient.QuantityInStock = decimal.Parse(QuantityTextBox.Text);
+                selectedIngredient.QuantityInStock = quantity;
                 selectedIngredient.Unit = UnitTextBox.Text;
-                selectedIngredient.WarningThreshold = decimal.Parse(ThresholdTextBox.Text);
+                selectedIngredient.WarningThreshold = threshold;
                 selectedIngredient.ExpiryDate = ExpiryDatePicker.SelectedDate.HasValue ? DateOnly.FromDateTime(ExpiryDatePicker.SelectedDate.Value) : (DateOnly?)null;
                 _context.Ingredients.Update(selectedIngredient);
             }
@@ -60,15 +74,36 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 var newIngredient = new Ingredient
                 {
                     IngredientName = IngredientNameTextBox.Text,
-                    QuantityInStock = decimal.Parse(QuantityTextBox.Text),
+                    QuantityInStock = quantity,
                     Unit = UnitTextBox.Text,
-                    WarningThreshold = decimal.Parse(ThresholdTextBox.Text),
+                    WarningThreshold = threshold,
                     ExpiryDate = ExpiryDatePicker.SelectedDate.HasValue ? DateOnly.FromDateTime(ExpiryDatePicker.SelectedDate.Value) : (DateOnly?)null
                 };
                 _context.Ingredients.Add(newIngredient);
             }
             _context.SaveChanges();
             LoadIngredients();
+            CheckAndUpdateProductAvailability();
+        }
+
+        private void CheckAndUpdateProductAvailability()
+        {
+            var products = _context.Products.Include(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).ToList();
+            foreach (var product in products)
+            {
+                bool isAvailable = true;
+                foreach (var pi in product.ProductIngredients)
+                {
+                    if (pi.Ingredient.QuantityInStock < pi.QuantityRequired)
+                    {
+                        isAvailable = false;
+                        break;
+                    }
+                }
+                product.IsOutOfStock = !isAvailable;
+                _context.Products.Update(product);
+            }
+            _context.SaveChanges();
         }
     }
 }

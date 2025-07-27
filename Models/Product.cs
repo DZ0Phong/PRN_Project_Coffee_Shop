@@ -13,12 +13,6 @@ public partial class Product
 
     public decimal Price { get; set; }
 
-    public string? Size { get; set; }
-
-    public string? Description { get; set; }
-
-    public string? ImagePath { get; set; }
-
     public bool IsOutOfStock { get; set; }
 
     public virtual Category Category { get; set; } = null!;

@@ -30,32 +30,47 @@
 
         <!-- Product Details Form -->
         <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="ProductForm" Margin="10,0,0,0" DataContext="{Binding SelectedItem, ElementName=ProductsDataGrid}">
+            <StackPanel x:Name="ProductForm" Margin="10,0,0,0">
                 <TextBlock Text="Product Details" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
                 
                 <TextBlock Text="Product Name:"/>
-                <TextBox x:Name="ProductNameTextBox" Margin="0,5,0,10" Text="{Binding ProductName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox x:Name="ProductNameTextBox" Margin="0,5,0,10"/>
 
                 <TextBlock Text="Category:"/>
-                <ComboBox x:Name="CategoryComboBox" Margin="0,5,0,10" DisplayMemberPath="CategoryName" SelectedValuePath="CategoryId"
-                          SelectedValue="{Binding CategoryId, Mode=TwoWay}"/>
+                <ComboBox x:Name="CategoryComboBox" Margin="0,5,0,10" DisplayMemberPath="CategoryName" SelectedValuePath="CategoryId"/>
 
                 <TextBlock Text="Price:"/>
-                <TextBox x:Name="PriceTextBox" Margin="0,5,0,10" Text="{Binding Price, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox x:Name="PriceTextBox" Margin="0,5,0,10"/>
 
-                <TextBlock Text="Image Path:"/>
-                <TextBox x:Name="ImagePathTextBox" Margin="0,5,0,10" Text="{Binding ImagePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                <CheckBox x:Name="IsOutOfStockCheckBox" Content="Is Out of Stock" Margin="0,5,0,10" IsChecked="{Binding IsOutOfStock, Mode=TwoWay}"/>
-
-                <TextBlock Text="Description:"/>
-                <TextBox x:Name="DescriptionTextBox" Margin="0,5,0,10" TextWrapping="Wrap" Height="60" Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <CheckBox x:Name="IsOutOfStockCheckBox" Content="Is Out of Stock" Margin="0,5,0,10"/>
 
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                     <Button x:Name="NewButton" Content="New" Width="70" Click="NewButton_Click"/>
                     <Button x:Name="SaveButton" Content="Save" Width="70" Margin="5,0" Click="SaveButton_Click"/>
                     <Button x:Name="DeleteButton" Content="Delete" Width="70" Click="DeleteButton_Click"/>
                 </StackPanel>
+
+                <TextBlock Text="Ingredients" FontSize="14" FontWeight="Bold" Margin="0,20,0,10"/>
+                <ListView x:Name="IngredientsListView" Height="150" Margin="0,0,0,10">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Ingredient" DisplayMemberBinding="{Binding Ingredient.IngredientName}" Width="120"/>
+                            <GridViewColumn Header="Quantity" Width="80">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding QuantityRequired, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="AddIngredientButton" Content="Add Ingredient" Width="100" Click="AddIngredientButton_Click"/>
+                    <Button x:Name="RemoveIngredientButton" Content="Remove" Width="70" Margin="5,0" Click="RemoveIngredientButton_Click"/>
+                </StackPanel>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>
