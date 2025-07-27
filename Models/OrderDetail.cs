@@ -19,8 +19,6 @@ public partial class OrderDetail
 
     public int IcePercent { get; set; }
 
-    public string? Notes { get; set; }
-
     public decimal TotalPrice => (Price + Toppings.Sum(t => t.Price)) * Quantity;
 
     public virtual Order Order { get; set; } = null!;

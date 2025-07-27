@@ -61,7 +61,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             {
                 if (StatusComboBox.SelectedItem is ComboBoxItem selectedStatusItem && selectedStatusItem.Content is string newStatus)
                 {
-                    var orderToUpdate = _context.Orders.Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).FirstOrDefault(o => o.OrderId == selectedOrder.OrderId);
+                    var orderToUpdate = _context.Orders.Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.Category).Include(o => o.OrderDetails).ThenInclude(od => od.Product).ThenInclude(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).FirstOrDefault(o => o.OrderId == selectedOrder.OrderId);
                     if (orderToUpdate != null)
                     {
                         if (orderToUpdate.Status == "Preparing" && (newStatus == "Completed" || newStatus == "Cancelled"))

@@ -79,7 +79,6 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             if (OrderDataGrid.SelectedItem is OrderDetail selectedItem)
             {
                 OptionsPanel.Visibility = Visibility.Visible;
-                NotesTextBox.Text = selectedItem.Notes;
 
                 bool isDrink = selectedItem.Product?.Category?.CategoryName == "Cà Phê" || selectedItem.Product?.Category?.CategoryName == "Trà";
 
@@ -164,14 +163,6 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
         }
 
-        private void NotesTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (OrderDataGrid.SelectedItem is OrderDetail selectedItem)
-            {
-                selectedItem.Notes = NotesTextBox.Text;
-            }
-        }
-
         private void UpdateOrderTotal()
         {
             decimal total = 0;
@@ -209,6 +200,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                     Status = "Pending",
                     TableNumber = TableComboBox.SelectedItem.ToString(),
                     IsDelivery = TableComboBox.SelectedItem.ToString() == "Ship",
+                    DeliveryNotes = DeliveryNotesTextBox.Text,
                     PromotionCode = PromotionCodeTextBox.Text,
                     OrderDetails = new List<OrderDetail>(_currentOrderItems.Select(od => new OrderDetail
                     {
@@ -217,7 +209,6 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                         Price = od.Price,
                         SugarPercent = od.SugarPercent,
                         IcePercent = od.IcePercent,
-                        Notes = od.Notes,
                         Toppings = new List<Product>(od.Toppings)
                     }))
                 };
