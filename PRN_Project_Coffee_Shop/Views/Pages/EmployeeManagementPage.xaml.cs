@@ -30,15 +30,14 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             {
                 _selectedEmployee = employee;
                 EmployeeForm.DataContext = _selectedEmployee;
-                EmailTextBox.Text = _selectedEmployee.User?.Email;
                 PasswordBox.Password = "";
                 PasswordBox.IsEnabled = true; // Enable for password reset
             }
             else
             {
+                // Keep the form clear if no employee is selected
                 _selectedEmployee = null;
                 EmployeeForm.DataContext = null;
-                EmailTextBox.Text = "";
                 PasswordBox.Password = "";
                 PasswordBox.IsEnabled = false;
             }
@@ -46,9 +45,11 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void NewButton_Click(object sender, RoutedEventArgs e)
         {
-            _selectedEmployee = new Employee();
+            _selectedEmployee = new Employee
+            {
+                User = new User() // Initialize the nested User object for data binding
+            };
             EmployeeForm.DataContext = _selectedEmployee;
-            EmailTextBox.Text = "";
             PasswordBox.Password = "";
             EmployeesDataGrid.SelectedItem = null;
             PasswordBox.IsEnabled = true;
@@ -57,29 +58,19 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(FullNameTextBox.Text) ||
-                string.IsNullOrWhiteSpace(PositionTextBox.Text) ||
-                string.IsNullOrWhiteSpace(SalaryTextBox.Text) ||
-                string.IsNullOrWhiteSpace(EmailTextBox.Text))
+            if (_selectedEmployee == null || EmployeeForm.DataContext == null)
             {
-                MessageBox.Show("Please fill all fields.", "Warning");
+                MessageBox.Show("No employee data to save.", "Information");
                 return;
             }
 
-            if (_selectedEmployee == null)
+            // Validate the data context directly
+            if (string.IsNullOrWhiteSpace(_selectedEmployee.FullName) ||
+                string.IsNullOrWhiteSpace(_selectedEmployee.Position) ||
+                _selectedEmployee.Salary <= 0 ||
+                _selectedEmployee.User == null || string.IsNullOrWhiteSpace(_selectedEmployee.User.Email))
             {
-                _selectedEmployee = new Employee();
-            }
-
-            _selectedEmployee.FullName = FullNameTextBox.Text;
-            _selectedEmployee.Position = PositionTextBox.Text;
-            if (decimal.TryParse(SalaryTextBox.Text, out decimal salary))
-            {
-                _selectedEmployee.Salary = salary;
-            }
-            else
-            {
-                MessageBox.Show("Invalid salary format.", "Error");
+                MessageBox.Show("Please fill all fields correctly.", "Warning");
                 return;
             }
 
@@ -91,24 +82,18 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                     return;
                 }
 
-                var newUser = new User
-                {
-                    Email = EmailTextBox.Text,
-                    PasswordHash = HashPassword(PasswordBox.Password),
-                    RoleId = 2, // Assuming 2 is the RoleId for Employee
-                    IsLocked = false
-                };
-                _context.Users.Add(newUser);
-                _selectedEmployee.User = newUser;
+                // The User object is already part of _selectedEmployee due to binding
+                _selectedEmployee.User.PasswordHash = HashPassword(PasswordBox.Password);
+                _selectedEmployee.User.RoleId = 2; // Employee Role
+                _selectedEmployee.User.IsLocked = false;
+                
                 _context.Employees.Add(_selectedEmployee);
             }
             else // Existing Employee
             {
-                var user = _context.Users.Find(_selectedEmployee.UserId);
-                if (user != null)
-                {
-                    user.Email = EmailTextBox.Text;
-                }
+                // The context is already tracking the _selectedEmployee and its related User.
+                // Changes made in the UI are already updated in the tracked entities.
+                _context.Employees.Update(_selectedEmployee);
             }
 
             _context.SaveChanges();
