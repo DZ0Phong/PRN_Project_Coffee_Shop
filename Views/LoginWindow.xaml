@@ -15,7 +15,7 @@
             <TextBox x:Name="EmailTextBox" Margin="0,5,0,10"/>
             
             <TextBlock Text="Password:"/>
-            <PasswordBox x:Name="PasswordBox" Margin="0,5,0,20"/>
+            <PasswordBox x:Name="PasswordBox" Margin="0,5,0,20" KeyDown="PasswordBox_KeyDown"/>
             
             <Button x:Name="LoginButton" Content="Login" Click="LoginButton_Click"/>
         </StackPanel>

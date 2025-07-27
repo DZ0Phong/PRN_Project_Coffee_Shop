@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PRN_Project_Coffee_Shop.Models;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
 
 namespace PRN_Project_Coffee_Shop.Views
 {
@@ -20,6 +21,12 @@ namespace PRN_Project_Coffee_Shop.Views
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
                 MessageBox.Show("Please enter both email and password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (password.Length < 8)
+            {
+                MessageBox.Show("Password must be at least 8 characters long.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -52,6 +59,14 @@ namespace PRN_Project_Coffee_Shop.Views
                 {
                     MessageBox.Show("Invalid email or password.", "Login Failed", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private void PasswordBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                LoginButton_Click(sender, e);
             }
         }
     }

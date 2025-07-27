@@ -139,7 +139,18 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             orderToUpdate.Status = newStatus;
             _context.SaveChanges();
 
+            // Explicitly update the controls to reflect the new state immediately
+            UpdateStatusControls(orderToUpdate);
+            
             LoadOrders(OrderDatePicker.SelectedDate);
+            
+            // Reselect the item in the grid to maintain context
+            var gridItemsSource = OrdersDataGrid.ItemsSource as List<Order>;
+            if (gridItemsSource != null)
+            {
+                OrdersDataGrid.SelectedItem = gridItemsSource.FirstOrDefault(o => o.OrderId == orderToUpdate.OrderId);
+            }
+
             MessageBox.Show($"Order {orderToUpdate.OrderId} status updated to {newStatus}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
