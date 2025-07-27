@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.ObjectModel;
+using Microsoft.Data.SqlClient;
 
 namespace PRN_Project_Coffee_Shop.Views.Pages
 {
@@ -96,7 +97,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 return;
             }
 
-            // Validation
+            // --- Basic Validation ---
             if (string.IsNullOrWhiteSpace(ProductNameTextBox.Text))
             {
                 MessageBox.Show("Product name cannot be empty.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -107,11 +108,32 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 MessageBox.Show("Please select a category.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            if (!decimal.TryParse(PriceTextBox.Text, out decimal price))
+            if (!decimal.TryParse(PriceTextBox.Text, out decimal price) || price < 0)
             {
-                MessageBox.Show("Please enter a valid price.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Please enter a valid, non-negative price.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+
+            // --- Ingredient Validation ---
+            var validIngredients = _productIngredients
+                .Where(pi => pi.IngredientId > 0)
+                .ToList();
+
+            if (!validIngredients.Any())
+            {
+                MessageBox.Show("A product must have at least one ingredient.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            foreach (var pi in validIngredients)
+            {
+                if (pi.QuantityRequired <= 0)
+                {
+                    MessageBox.Show($"Quantity for ingredient '{pi.Ingredient.IngredientName}' must be greater than 0.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
 
             _selectedProduct.ProductName = ProductNameTextBox.Text;
             _selectedProduct.CategoryId = (int)CategoryComboBox.SelectedValue;
@@ -120,43 +142,39 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
             try
             {
-                // Handle Ingredients
-                // First, remove existing ingredients that are no longer in the list
+                // --- Handle Ingredients within a single transaction ---
                 if (_selectedProduct.ProductId != 0)
                 {
+                    // Load existing ingredients to be removed
                     var existingIngredients = _context.ProductIngredients
                                                     .Where(pi => pi.ProductId == _selectedProduct.ProductId)
                                                     .ToList();
                     _context.ProductIngredients.RemoveRange(existingIngredients);
-                    _context.SaveChanges();
                 }
 
-
-                // Then, add the current list of ingredients
+                // Clear the navigation property and add the new valid ingredients
                 _selectedProduct.ProductIngredients.Clear();
-                foreach (var pi in _productIngredients)
+                foreach (var pi in validIngredients)
                 {
-                    if (pi.IngredientId > 0 && pi.QuantityRequired > 0)
+                    _selectedProduct.ProductIngredients.Add(new ProductIngredient
                     {
-                        _selectedProduct.ProductIngredients.Add(new ProductIngredient
-                        {
-                            IngredientId = pi.IngredientId,
-                            QuantityRequired = pi.QuantityRequired
-                        });
-                    }
+                        IngredientId = pi.IngredientId,
+                        QuantityRequired = pi.QuantityRequired
+                    });
                 }
 
-
-                if (_selectedProduct.ProductId == 0) // It's a new product
+                // --- Add or Update Product ---
+                if (_selectedProduct.ProductId == 0) // New product
                 {
                     _context.Products.Add(_selectedProduct);
                 }
-                else // It's an existing product
+                else // Existing product
                 {
                     _context.Products.Update(_selectedProduct);
                 }
 
-                _context.SaveChanges();
+                _context.SaveChanges(); // All changes are saved here in one transaction
+
                 LoadProducts();
                 MessageBox.Show("Product saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 ClearForm();
@@ -173,18 +191,63 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedProduct != null && _selectedProduct.ProductId != 0)
+            if (_selectedProduct == null || _selectedProduct.ProductId == 0)
             {
-                if (MessageBox.Show("Are you sure you want to delete this product?", "Confirm Delete", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
-                {
-                    // Also remove related product ingredients
-                    var ingredientsToRemove = _context.ProductIngredients.Where(pi => pi.ProductId == _selectedProduct.ProductId);
-                    _context.ProductIngredients.RemoveRange(ingredientsToRemove);
+                MessageBox.Show("Please select a product to delete.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
+            // Check if the product is used in any ACTIVE orders (Pending or Preparing)
+            bool isActiveOrder = _context.OrderDetails
+                .Any(od => (od.Order.Status == "Pending" || od.Order.Status == "Preparing") &&
+                           (od.ProductId == _selectedProduct.ProductId || od.Toppings.Any(t => t.ProductId == _selectedProduct.ProductId)));
+
+            if (isActiveOrder)
+            {
+                MessageBox.Show("This product cannot be deleted because it is part of an existing order. Consider marking it as 'Out of Stock' instead.", "Deletion Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (MessageBox.Show("Are you sure you want to delete this product?", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    // Remove related product ingredients first
+                    var ingredientsToRemove = _context.ProductIngredients.Where(pi => pi.ProductId == _selectedProduct.ProductId);
+                    if (ingredientsToRemove.Any())
+                    {
+                        _context.ProductIngredients.RemoveRange(ingredientsToRemove);
+                    }
+
+                    // Remove the product itself
                     _context.Products.Remove(_selectedProduct);
-                    _context.SaveChanges();
+
+                    _context.SaveChanges(); // Save all changes in one transaction
+
                     LoadProducts();
                     ClearForm();
+                    MessageBox.Show("Product deleted successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (DbUpdateException ex)
+                {
+                    // Check for a specific foreign key constraint violation (error code 547 for SQL Server)
+                    if (ex.InnerException is SqlException sqlEx && sqlEx.Number == 547)
+                    {
+                        MessageBox.Show(
+                            "Không thể xóa sản phẩm này vì nó là một phần của các đơn hàng đã tồn tại trong lịch sử.\n\n" +
+                            "Để ngừng bán mặt hàng này, vui lòng đánh dấu là 'Hết hàng' (Out of Stock).",
+                            "Xóa không thành công",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Đã xảy ra lỗi cơ sở dữ liệu khi xóa: {ex.InnerException?.Message ?? ex.Message}", "Lỗi cơ sở dữ liệu", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }

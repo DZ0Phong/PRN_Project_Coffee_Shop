@@ -130,11 +130,28 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
             if (orderToUpdate == null) return;
 
-            // Deduct inventory only when moving from Pending to Preparing
+            // Handle inventory check and deduction when moving from Pending to Preparing
             if (orderToUpdate.Status == "Pending" && newStatus == "Preparing")
             {
+                string? inventoryCheckError = CheckInventory(orderToUpdate);
+                if (inventoryCheckError != null)
+                {
+                    MessageBox.Show(inventoryCheckError, "Inventory Check Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return; // Stop the update process
+                }
+
                 DeductInventory(orderToUpdate);
             }
+            // Handle inventory restoration if an order is cancelled
+            else if (newStatus == "Cancelled" && orderToUpdate.Status != "Cancelled")
+            {
+                // Optional: Restore inventory if an order is cancelled.
+                // This might need more complex logic depending on business rules
+                // (e.g., only restore if it was in "Preparing" state).
+                // For now, we'll assume cancellation from "Pending" doesn't need restoration
+                // as inventory wasn't deducted yet.
+            }
+
 
             orderToUpdate.Status = newStatus;
             _context.SaveChanges();
@@ -154,41 +171,36 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             MessageBox.Show($"Order {orderToUpdate.OrderId} status updated to {newStatus}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void DeductInventory(Order order)
+        private string? CheckInventory(Order order)
         {
-            // This check is crucial to prevent re-deduction on refresh or error.
-            if (order.Status != "Pending") return;
+            var requiredIngredients = GetRequiredIngredientsForOrder(order);
+            var errorMessages = new List<string>();
+            var today = DateOnly.FromDateTime(DateTime.Today);
 
-            var itemsToDeduct = new Dictionary<int, decimal>();
-
-            // Consolidate all required ingredients from the order
-            foreach (var detail in order.OrderDetails)
+            foreach (var required in requiredIngredients)
             {
-                // Main product ingredients
-                foreach (var pi in detail.Product.ProductIngredients)
+                var ingredientInStock = _context.Ingredients.Find(required.Key);
+                string ingredientName = ingredientInStock?.IngredientName ?? $"ID {required.Key}";
+
+                // Check for sufficient quantity
+                if (ingredientInStock == null || ingredientInStock.QuantityInStock < required.Value)
                 {
-                    if (itemsToDeduct.ContainsKey(pi.IngredientId))
-                        itemsToDeduct[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
-                    else
-                        itemsToDeduct[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
+                    errorMessages.Add($"- Không đủ '{ingredientName}'. Yêu cầu: {required.Value}, Tồn kho: {ingredientInStock?.QuantityInStock ?? 0}.");
                 }
 
-                // Toppings ingredients
-                foreach (var topping in detail.Toppings)
+                // Check for expiry date
+                if (ingredientInStock?.ExpiryDate.HasValue == true && ingredientInStock.ExpiryDate.Value < today)
                 {
-                    // Eagerly load topping ingredients if not already loaded
-                    var toppingIngredients = _context.ProductIngredients
-                                                     .Where(pi => pi.ProductId == topping.ProductId)
-                                                     .ToList();
-                    foreach (var pi in toppingIngredients)
-                    {
-                        if (itemsToDeduct.ContainsKey(pi.IngredientId))
-                            itemsToDeduct[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
-                        else
-                            itemsToDeduct[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
-                    }
+                    errorMessages.Add($"- Nguyên liệu '{ingredientName}' đã hết hạn vào ngày {ingredientInStock.ExpiryDate.Value}.");
                 }
             }
+
+            return errorMessages.Any() ? "Không thể cập nhật trạng thái. Vấn đề kho hàng:\n" + string.Join("\n", errorMessages) : null;
+        }
+
+        private void DeductInventory(Order order)
+        {
+            var itemsToDeduct = GetRequiredIngredientsForOrder(order);
 
             // Perform the deduction
             foreach (var item in itemsToDeduct)
@@ -199,6 +211,38 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                     ingredient.QuantityInStock -= item.Value;
                 }
             }
+        }
+
+        private Dictionary<int, decimal> GetRequiredIngredientsForOrder(Order order)
+        {
+            var requiredItems = new Dictionary<int, decimal>();
+
+            // Consolidate all required ingredients from the order
+            foreach (var detail in order.OrderDetails)
+            {
+                // Main product ingredients
+                foreach (var pi in detail.Product.ProductIngredients)
+                {
+                    if (requiredItems.ContainsKey(pi.IngredientId))
+                        requiredItems[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
+                    else
+                        requiredItems[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
+                }
+
+                // Toppings ingredients
+                foreach (var topping in detail.Toppings)
+                {
+                    // The product model for toppings should already be loaded with its ingredients
+                    foreach (var pi in topping.ProductIngredients)
+                    {
+                        if (requiredItems.ContainsKey(pi.IngredientId))
+                            requiredItems[pi.IngredientId] += pi.QuantityRequired * detail.Quantity; // Assuming topping quantity is tied to main item quantity
+                        else
+                            requiredItems[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
+                    }
+                }
+            }
+            return requiredItems;
         }
     }
 }

@@ -15,7 +15,11 @@
             <TextBox x:Name="EmailTextBox" Margin="0,5,0,10"/>
             
             <TextBlock Text="Password:"/>
-            <PasswordBox x:Name="PasswordBox" Margin="0,5,0,20" KeyDown="PasswordBox_KeyDown"/>
+            <Grid>
+                <PasswordBox x:Name="PasswordBox" Margin="0,5,0,20" KeyDown="PasswordBox_KeyDown" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="PasswordTextBox" Margin="0,5,40,20" Visibility="Collapsed" VerticalContentAlignment="Center"/>
+                <Button x:Name="ShowHideButton" Content="Hiện" Width="35" HorizontalAlignment="Right" Margin="0,5,0,20" Click="ShowHideButton_Click"/>
+            </Grid>
             
             <Button x:Name="LoginButton" Content="Login" Click="LoginButton_Click"/>
         </StackPanel>

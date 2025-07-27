@@ -16,7 +16,8 @@ namespace PRN_Project_Coffee_Shop.Views
         private void LoginButton_Click(object sender, RoutedEventArgs e)
         {
             string email = EmailTextBox.Text;
-            string password = PasswordBox.Password;
+            // Use the password from the visible control
+            string password = (PasswordBox.Visibility == Visibility.Visible) ? PasswordBox.Password : PasswordTextBox.Text;
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
@@ -67,6 +68,28 @@ namespace PRN_Project_Coffee_Shop.Views
             if (e.Key == Key.Enter)
             {
                 LoginButton_Click(sender, e);
+            }
+        }
+
+        private void ShowHideButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PasswordBox.Visibility == Visibility.Visible)
+            {
+                // Show password
+                PasswordBox.Visibility = Visibility.Collapsed;
+                PasswordTextBox.Visibility = Visibility.Visible;
+                PasswordTextBox.Text = PasswordBox.Password;
+                ShowHideButton.Content = "Ẩn";
+                PasswordTextBox.Focus();
+            }
+            else
+            {
+                // Hide password
+                PasswordBox.Visibility = Visibility.Visible;
+                PasswordTextBox.Visibility = Visibility.Collapsed;
+                PasswordBox.Password = PasswordTextBox.Text;
+                ShowHideButton.Content = "Hiện";
+                PasswordBox.Focus();
             }
         }
     }

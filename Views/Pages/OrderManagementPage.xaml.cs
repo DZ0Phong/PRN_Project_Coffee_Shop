@@ -62,20 +62,20 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         {
             if ((sender as Button)?.DataContext is Product productToAdd)
             {
-                // Correct real-time check: count existing items in the cart + the new one.
-                int quantityInCart = _currentOrderItems.Count(item => item.ProductId == productToAdd.ProductId);
-                if (!CheckIngredientAvailability(productToAdd, quantityInCart + 1))
+                var reservedStock = GetReservedStock();
+                string availabilityError = CheckIngredientAvailability(productToAdd, 1, reservedStock);
+
+                if (availabilityError != null)
                 {
-                    MessageBox.Show($"Sorry, you cannot add more '{productToAdd.ProductName}'. Not enough ingredients in stock.", "Out of Stock", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBox.Show(availabilityError, "Không thể thêm món", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
-                // Revert to original logic: always add a new item for individual customization.
                 var newOrderItem = new OrderDetail
                 {
                     ProductId = productToAdd.ProductId,
                     Product = productToAdd,
-                    Quantity = 1, // Always 1 for a new line item
+                    Quantity = 1,
                     Price = productToAdd.Price,
                     SugarPercent = 100,
                     IcePercent = 100
@@ -86,13 +86,13 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
         }
 
-        private bool CheckIngredientAvailability(Product product, int quantity)
+        private string CheckIngredientAvailability(Product product, int quantity, Dictionary<int, decimal> reservedStock)
         {
-            var reservedStock = GetReservedStock();
             var productIngredients = _context.ProductIngredients
                                              .Include(pi => pi.Ingredient)
                                              .Where(pi => pi.ProductId == product.ProductId)
                                              .ToList();
+            var today = DateOnly.FromDateTime(DateTime.Today);
 
             foreach (var pi in productIngredients)
             {
@@ -101,10 +101,15 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
                 if (effectiveStock < (pi.QuantityRequired * quantity))
                 {
-                    return false;
+                    return $"Không đủ '{pi.Ingredient.IngredientName}' để làm '{product.ProductName}'.";
+                }
+
+                if (pi.Ingredient.ExpiryDate.HasValue && pi.Ingredient.ExpiryDate.Value < today)
+                {
+                    return $"Nguyên liệu '{pi.Ingredient.IngredientName}' cho món '{product.ProductName}' đã hết hạn.";
                 }
             }
-            return true;
+            return null; // All good
         }
 
         private Dictionary<int, decimal> GetReservedStock()
@@ -214,6 +219,16 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
                 if (checkBox.IsChecked == true)
                 {
+                    // Check availability before adding
+                    var reservedStock = GetReservedStock();
+                    string availabilityError = CheckIngredientAvailability(topping, 1, reservedStock);
+                    if (availabilityError != null)
+                    {
+                        MessageBox.Show(availabilityError, "Không thể thêm topping", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        checkBox.IsChecked = false; // Revert checkbox
+                        return;
+                    }
+
                     if (!selectedItem.Toppings.Contains(topping))
                     {
                         if (selectedItem.Toppings.Count < 5)
@@ -308,19 +323,30 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 return;
             }
 
-            // Final availability check before confirming
-            foreach (var item in _currentOrderItems)
+            // --- Final availability check before confirming ---
+            var reservedStock = GetReservedStock();
+            var allItemsInOrder = new List<Product>();
+            _currentOrderItems.ToList().ForEach(item => {
+                allItemsInOrder.Add(item.Product);
+                allItemsInOrder.AddRange(item.Toppings);
+            });
+
+            var distinctItems = allItemsInOrder.Distinct();
+
+            foreach (var product in distinctItems)
             {
-                if (!CheckIngredientAvailability(item.Product, item.Quantity))
+                int quantity = allItemsInOrder.Count(p => p.ProductId == product.ProductId);
+                string availabilityError = CheckIngredientAvailability(product, quantity, reservedStock);
+                if (availabilityError != null)
                 {
-                    MessageBox.Show($"Sorry, '{item.Product.ProductName}' has become unavailable in the quantity you requested.", "Stock Changed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    item.Product.IsOutOfStock = true;
-                    _context.Products.Update(item.Product);
-                    _context.SaveChanges();
-                    LoadInitialData(); // Refresh menu
+                    MessageBox.Show(availabilityError, "Lỗi xác nhận đơn hàng", MessageBoxButton.OK, MessageBoxImage.Error);
+                    // Optional: Refresh menu to show out-of-stock items
+                    CheckAndUpdateAllProductAvailability();
+                    LoadInitialData();
                     return;
                 }
             }
+
 
             using (var transaction = _context.Database.BeginTransaction())
             {
@@ -550,9 +576,11 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         private void CheckAndUpdateAllProductAvailability()
         {
             var allProducts = _context.Products.Include(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).ToList();
+            var reservedStock = GetReservedStock(); // Get reserved stock once
             foreach (var product in allProducts)
             {
-                product.IsOutOfStock = !CheckIngredientAvailability(product, 1);
+                string availabilityError = CheckIngredientAvailability(product, 1, reservedStock);
+                product.IsOutOfStock = (availabilityError != null);
                 _context.Products.Update(product);
             }
             _context.SaveChanges();

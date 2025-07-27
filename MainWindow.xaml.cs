@@ -1,6 +1,10 @@
 ﻿using PRN_Project_Coffee_Shop.Models;
 using PRN_Project_Coffee_Shop.Views;
 using PRN_Project_Coffee_Shop.Views.Pages;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Windows;
 
 namespace PRN_Project_Coffee_Shop
@@ -15,6 +19,8 @@ namespace PRN_Project_Coffee_Shop
             InitializeComponent();
             _currentUser = user;
             SetupUIBasedOnRole();
+            // Perform inventory check after the window is loaded
+            this.Loaded += (s, e) => CheckInventoryWarnings();
         }
 
         private void SetupUIBasedOnRole()
@@ -72,6 +78,55 @@ namespace PRN_Project_Coffee_Shop
             LoginWindow loginWindow = new LoginWindow();
             loginWindow.Show();
             this.Close();
+        }
+
+        private void CheckInventoryWarnings()
+        {
+            using (var context = new PrnProjectCoffeeShopContext())
+            {
+                var lowStockIngredients = context.Ingredients
+                    .Where(i => i.QuantityInStock <= i.WarningThreshold)
+                    .ToList();
+
+                var expiringIngredients = context.Ingredients
+                    .Where(i => i.ExpiryDate.HasValue && i.ExpiryDate.Value <= DateOnly.FromDateTime(DateTime.Today.AddDays(2)))
+                    .ToList();
+
+                var warningMessage = new StringBuilder();
+
+                if (lowStockIngredients.Any())
+                {
+                    warningMessage.AppendLine("Cảnh báo tồn kho thấp:");
+                    foreach (var item in lowStockIngredients)
+                    {
+                        warningMessage.AppendLine($"- {item.IngredientName} (Còn lại: {item.QuantityInStock} {item.Unit})");
+                    }
+                    warningMessage.AppendLine("Vui lòng bổ sung thêm.");
+                    warningMessage.AppendLine();
+                }
+
+                if (expiringIngredients.Any())
+                {
+                    warningMessage.AppendLine("Cảnh báo hạn sử dụng:");
+                    foreach (var item in expiringIngredients)
+                    {
+                        if (item.ExpiryDate < DateOnly.FromDateTime(DateTime.Today))
+                        {
+                            warningMessage.AppendLine($"- {item.IngredientName} (Đã hết hạn vào ngày {item.ExpiryDate})");
+                        }
+                        else
+                        {
+                            warningMessage.AppendLine($"- {item.IngredientName} (Sắp hết hạn vào ngày {item.ExpiryDate})");
+                        }
+                    }
+                    warningMessage.AppendLine("Vui lòng kiểm tra và nhập hàng mới.");
+                }
+
+                if (warningMessage.Length > 0)
+                {
+                    MessageBox.Show(warningMessage.ToString(), "Cảnh báo Kho hàng", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
         }
     }
 }
