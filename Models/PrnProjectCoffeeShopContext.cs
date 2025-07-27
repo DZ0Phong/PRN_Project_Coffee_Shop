@@ -36,10 +36,15 @@ public partial class PrnProjectCoffeeShopContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        // Added Pooling=False as a diagnostic step to address the identity seed jumping issue.
-        // This is not a permanent solution and may impact performance, but it can help determine
-        // if connection state is related to the problem.
-        => optionsBuilder.UseSqlServer("server=localhost;database=PRN_Project_Coffee_Shop;uid=sa;pwd=sa123456;TrustServerCertificate=True;Pooling=False;");
+    {
+        if (!optionsBuilder.IsConfigured)
+        {
+            // Added Pooling=False as a diagnostic step to address the identity seed jumping issue.
+            // This is not a permanent solution and may impact performance, but it can help determine
+            // if connection state is related to the problem.
+            optionsBuilder.UseSqlServer("server=localhost;database=PRN_Project_Coffee_Shop;uid=sa;pwd=sa123456;TrustServerCertificate=True;Pooling=False;");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

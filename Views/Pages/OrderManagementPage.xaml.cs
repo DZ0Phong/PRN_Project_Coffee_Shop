@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using PRN_Project_Coffee_Shop.Models;
+using PRN_Project_Coffee_Shop.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,6 +17,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
     public partial class OrderManagementPage : Page
     {
         private readonly PrnProjectCoffeeShopContext _context = new PrnProjectCoffeeShopContext();
+        private readonly OrderService _orderService;
         private readonly ObservableCollection<OrderDetail> _currentOrderItems = new ObservableCollection<OrderDetail>();
         private readonly User _currentUser;
         private List<Product> _toppings;
@@ -25,6 +27,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
         {
             InitializeComponent();
             _currentUser = currentUser;
+            _orderService = new OrderService(_context);
             LoadInitialData();
             OrderDataGrid.ItemsSource = _currentOrderItems;
         }
@@ -88,70 +91,12 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private string CheckIngredientAvailability(Product product, int quantity, Dictionary<int, decimal> reservedStock)
         {
-            var productIngredients = _context.ProductIngredients
-                                             .Include(pi => pi.Ingredient)
-                                             .Where(pi => pi.ProductId == product.ProductId)
-                                             .ToList();
-            var today = DateOnly.FromDateTime(DateTime.Today);
-
-            foreach (var pi in productIngredients)
-            {
-                decimal reserved = reservedStock.GetValueOrDefault(pi.IngredientId, 0);
-                decimal effectiveStock = pi.Ingredient.QuantityInStock - reserved;
-
-                if (effectiveStock < (pi.QuantityRequired * quantity))
-                {
-                    return $"Không đủ '{pi.Ingredient.IngredientName}' để làm '{product.ProductName}'.";
-                }
-
-                if (pi.Ingredient.ExpiryDate.HasValue && pi.Ingredient.ExpiryDate.Value < today)
-                {
-                    return $"Nguyên liệu '{pi.Ingredient.IngredientName}' cho món '{product.ProductName}' đã hết hạn.";
-                }
-            }
-            return null; // All good
+            return _orderService.CheckIngredientAvailability(product, quantity, reservedStock);
         }
 
         private Dictionary<int, decimal> GetReservedStock()
         {
-            var reservedStock = new Dictionary<int, decimal>();
-            var pendingOrders = _context.Orders
-                                        .Include(o => o.OrderDetails)
-                                            .ThenInclude(od => od.Product)
-                                                .ThenInclude(p => p.ProductIngredients)
-                                        .Include(o => o.OrderDetails)
-                                            .ThenInclude(od => od.Toppings)
-                                                .ThenInclude(t => t.ProductIngredients)
-                                        .Where(o => o.Status == "Pending")
-                                        .ToList();
-
-            foreach (var order in pendingOrders)
-            {
-                foreach (var detail in order.OrderDetails)
-                {
-                    // Main product ingredients
-                    foreach (var pi in detail.Product.ProductIngredients)
-                    {
-                        if (reservedStock.ContainsKey(pi.IngredientId))
-                            reservedStock[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
-                        else
-                            reservedStock[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
-                    }
-
-                    // Toppings ingredients
-                    foreach (var topping in detail.Toppings)
-                    {
-                        foreach (var pi in topping.ProductIngredients)
-                        {
-                            if (reservedStock.ContainsKey(pi.IngredientId))
-                                reservedStock[pi.IngredientId] += pi.QuantityRequired * detail.Quantity;
-                            else
-                                reservedStock[pi.IngredientId] = pi.QuantityRequired * detail.Quantity;
-                        }
-                    }
-                }
-            }
-            return reservedStock;
+            return _orderService.GetReservedStock();
         }
 
         private void OrderDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -312,160 +257,48 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void ConfirmOrderButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!_currentOrderItems.Any())
-            {
-                MessageBox.Show("Cannot confirm an empty order.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
             if (TableComboBox.SelectedItem == null)
             {
                 MessageBox.Show("Please select a table or 'Ship'.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // --- Final availability check before confirming ---
-            var reservedStock = GetReservedStock();
-            var allItemsInOrder = new List<Product>();
-            _currentOrderItems.ToList().ForEach(item => {
-                allItemsInOrder.Add(item.Product);
-                allItemsInOrder.AddRange(item.Toppings);
-            });
+            var table = TableComboBox.SelectedItem.ToString();
+            var isDelivery = table == "Ship";
+            var deliveryNotes = DeliveryNotesTextBox.Text;
+            var customerEmail = CustomerEmailTextBox.Text;
 
-            var distinctItems = allItemsInOrder.Distinct();
+            var (Success, Message, NewOrder) = _orderService.CreateOrder(
+                _currentUser,
+                _currentOrderItems,
+                table,
+                isDelivery,
+                deliveryNotes,
+                customerEmail,
+                _appliedPromotion
+            );
 
-            foreach (var product in distinctItems)
+            if (Success)
             {
-                int quantity = allItemsInOrder.Count(p => p.ProductId == product.ProductId);
-                string availabilityError = CheckIngredientAvailability(product, quantity, reservedStock);
-                if (availabilityError != null)
+                MessageBox.Show(Message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                // The email sending logic is now inside the service, but we might want to give feedback here.
+                // For now, we assume the service handles it.
+                if (!string.IsNullOrWhiteSpace(customerEmail) && (NewOrder.Customer?.Points / 100) > 0)
                 {
-                    MessageBox.Show(availabilityError, "Lỗi xác nhận đơn hàng", MessageBoxButton.OK, MessageBoxImage.Error);
-                    // Optional: Refresh menu to show out-of-stock items
+                    MessageBox.Show($"Promotion code sent to {customerEmail}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                LoadInitialData(); // Refresh menu
+                CancelOrderButton_Click(sender, e); // Clear the form
+            }
+            else
+            {
+                MessageBox.Show(Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                // Optional: Refresh menu if the error was due to availability
+                if (Message.Contains("Không đủ") || Message.Contains("hết hạn"))
+                {
                     CheckAndUpdateAllProductAvailability();
                     LoadInitialData();
-                    return;
-                }
-            }
-
-
-            using (var transaction = _context.Database.BeginTransaction())
-            {
-                try
-                {
-                    decimal originalTotal = _currentOrderItems.Sum(item => (item.Price + item.Toppings.Sum(t => t.Price)) * item.Quantity);
-                    decimal finalTotal = originalTotal;
-
-                    if (_appliedPromotion != null)
-                    {
-                        finalTotal = originalTotal - (originalTotal * (_appliedPromotion.DiscountPercentage / 100));
-                    }
-
-                    var newOrder = new Order
-                    {
-                        UserId = _currentUser.UserId,
-                        OrderDate = DateTime.Now,
-                        TotalAmount = finalTotal,
-                        Status = "Pending",
-                        TableNumber = TableComboBox.SelectedItem.ToString(),
-                        IsDelivery = TableComboBox.SelectedItem.ToString() == "Ship",
-                        DeliveryNotes = DeliveryNotesTextBox.Text,
-                        PromotionCode = _appliedPromotion?.PromotionCode,
-                        OrderDetails = new List<OrderDetail>() // Initialize empty
-                    };
-
-                    // Create new OrderDetail entities from the view model items
-                    foreach (var itemVM in _currentOrderItems)
-                    {
-                        var newDetail = new OrderDetail
-                        {
-                            ProductId = itemVM.ProductId,
-                            Quantity = itemVM.Quantity,
-                            Price = itemVM.Price,
-                            SugarPercent = itemVM.SugarPercent,
-                            IcePercent = itemVM.IcePercent,
-                            Toppings = new List<Product>() // Initialize empty
-                        };
-
-                        // Re-fetch topping entities to ensure correct tracking
-                        var toppingIds = itemVM.Toppings.Select(t => t.ProductId).ToList();
-                        var trackedToppings = _context.Products.Where(p => toppingIds.Contains(p.ProductId)).ToList();
-                        foreach (var topping in trackedToppings)
-                        {
-                            newDetail.Toppings.Add(topping);
-                        }
-                        newOrder.OrderDetails.Add(newDetail);
-                    }
-
-
-                    if (!string.IsNullOrWhiteSpace(CustomerEmailTextBox.Text))
-                    {
-                        var customer = _context.Customers.FirstOrDefault(c => c.Email == CustomerEmailTextBox.Text);
-                        bool isNewCustomer = customer == null;
-
-                        if (isNewCustomer)
-                        {
-                            customer = new Customer { Email = CustomerEmailTextBox.Text, CustomerName = "New Customer", Points = 0 };
-                            _context.Customers.Add(customer);
-                        }
-                        
-                        newOrder.Customer = customer;
-
-                        int pointsToAdd = 0;
-                        foreach (var item in newOrder.OrderDetails)
-                        {
-                            var product = _context.Products.Include(p => p.Category).First(p => p.ProductId == item.ProductId);
-                            if (product.Category.CategoryName == "Cà Phê" || product.Category.CategoryName == "Trà")
-                            {
-                                pointsToAdd += 5 * item.Quantity; // Reduced from 14
-                            }
-                            else if (product.Category.CategoryName == "Bánh")
-                            {
-                                pointsToAdd += 8 * item.Quantity; // Reduced from 23
-                            }
-                        }
-                        customer.Points = (customer.Points ?? 0) + pointsToAdd;
-                        _context.Customers.Update(customer);
-
-                        // Save here to get CustomerID if new
-                        _context.SaveChanges(); 
-
-                        if (customer.Points >= 100)
-                        {
-                            int promotionsToCreate = customer.Points.Value / 100;
-                            for (int i = 0; i < promotionsToCreate; i++)
-                            {
-                                customer.Points -= 100;
-                                CreateAndSendPromotion(customer);
-                            }
-                            _context.Customers.Update(customer);
-                        }
-                    }
-
-                    if (_appliedPromotion != null)
-                    {
-                        var promotionToUpdate = _context.Promotions.First(p => p.PromotionId == _appliedPromotion.PromotionId);
-                        promotionToUpdate.IsUsed = true;
-                        promotionToUpdate.IsActive = false;
-                        _context.Promotions.Update(promotionToUpdate);
-                    }
-
-                    // DO NOT deduct ingredients here. This will be done in OrderStatusPage.
-                    _context.Orders.Add(newOrder);
-                    _context.SaveChanges();
-
-                    transaction.Commit();
-
-                    // Post-order availability check
-                    CheckAndUpdateAllProductAvailability();
-                    LoadInitialData(); // Refresh menu
-
-                    MessageBox.Show("Order successfully created!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    CancelOrderButton_Click(sender, e);
-                }
-                catch (Exception ex)
-                {
-                    transaction.Rollback();
-                    MessageBox.Show($"An error occurred: {ex.InnerException?.Message ?? ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -575,15 +408,7 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
         private void CheckAndUpdateAllProductAvailability()
         {
-            var allProducts = _context.Products.Include(p => p.ProductIngredients).ThenInclude(pi => pi.Ingredient).ToList();
-            var reservedStock = GetReservedStock(); // Get reserved stock once
-            foreach (var product in allProducts)
-            {
-                string availabilityError = CheckIngredientAvailability(product, 1, reservedStock);
-                product.IsOutOfStock = (availabilityError != null);
-                _context.Products.Update(product);
-            }
-            _context.SaveChanges();
+            _orderService.CheckAndUpdateAllProductAvailability();
         }
     }
 
