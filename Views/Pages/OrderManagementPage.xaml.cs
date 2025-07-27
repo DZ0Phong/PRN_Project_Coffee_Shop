@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net;
+using System.Net.Mail;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -215,16 +217,54 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
 
                 if (!string.IsNullOrWhiteSpace(CustomerEmailTextBox.Text))
                 {
-                    var customer = _context.Customers.FirstOrDefault(c => c.Email == CustomerEmailTextBox.Text);
-                    if (customer != null)
+                    var customer = _context.Customers.Include(c => c.Orders).FirstOrDefault(c => c.Email == CustomerEmailTextBox.Text);
+                    bool isNewCustomer = customer == null;
+                    if (isNewCustomer)
                     {
-                        newOrder.CustomerId = customer.CustomerId;
+                        customer = new Customer { Email = CustomerEmailTextBox.Text, Points = 0 };
+                        _context.Customers.Add(customer);
+                    }
+
+                    newOrder.Customer = customer;
+
+                    // Calculate points
+                    int pointsToAdd = 0;
+                    foreach (var item in _currentOrderItems)
+                    {
+                        var categoryName = _context.Products
+                                                  .Where(p => p.ProductId == item.ProductId)
+                                                  .Select(p => p.Category.CategoryName)
+                                                  .FirstOrDefault();
+
+                        if (categoryName == "Cà Phê" || categoryName == "Trà")
+                        {
+                            pointsToAdd += 14 * item.Quantity;
+                        }
+                        else if (categoryName == "Bánh")
+                        {
+                            pointsToAdd += 23 * item.Quantity;
+                        }
+                    }
+
+                    customer.Points = (customer.Points ?? 0) + pointsToAdd;
+
+                    // Check for promotion
+                    if (customer.Points >= 100)
+                    {
+                        int promotionsToCreate = customer.Points.Value / 100;
+                        for (int i = 0; i < promotionsToCreate; i++)
+                        {
+                            customer.Points -= 100;
+                            CreateAndSendPromotion(customer);
+                        }
+                    }
+                     if (isNewCustomer)
+                    {
+                        _context.Customers.Add(customer);
                     }
                     else
                     {
-                        var newCustomer = new Customer { Email = CustomerEmailTextBox.Text, Points = 0 };
-                        _context.Customers.Add(newCustomer);
-                        newOrder.Customer = newCustomer;
+                        _context.Customers.Update(customer);
                     }
                 }
 
@@ -236,7 +276,52 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"An error occurred while confirming the order: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"An error occurred while confirming the order: {ex.InnerException?.Message ?? ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CreateAndSendPromotion(Customer customer)
+        {
+            var newPromotion = new Promotion
+            {
+                PromotionCode = $"DISCOUNT20_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}",
+                Description = $"Discount 20% for customer {customer.Email}",
+                DiscountPercentage = 20,
+                StartDate = DateOnly.FromDateTime(DateTime.Now),
+                EndDate = DateOnly.FromDateTime(DateTime.Now.AddMonths(6)),
+                IsActive = true,
+                IsUsed = false,
+                CustomerId = customer.CustomerId
+            };
+            _context.Promotions.Add(newPromotion);
+
+            // Send Email
+            try
+            {
+                string fromMail = "assasinhp619@gmail.com";
+                string fromPassword = "slos bctt epxv osla";
+
+                MailMessage message = new MailMessage();
+                message.From = new MailAddress(fromMail);
+                message.Subject = "Your 20% Discount Code from Coffee Shop!";
+                message.To.Add(new MailAddress(customer.Email));
+                message.Body = $"<html><body><h3>Hello {customer.CustomerName ?? "Valued Customer"},</h3><p>Congratulations! You've earned a 20% discount on your next order. Use the code below:</p><h2>{newPromotion.PromotionCode}</h2><p>This code is valid for 6 months and can be used once.</p><p>Thank you for being a loyal customer!</p><p>Sincerely,<br/>The Coffee Shop Team</p></body></html>";
+                message.IsBodyHtml = true;
+
+                var smtpClient = new SmtpClient("smtp.gmail.com")
+                {
+                    Port = 587,
+                    Credentials = new NetworkCredential(fromMail, fromPassword),
+                    EnableSsl = true,
+                };
+
+                smtpClient.Send(message);
+                 MessageBox.Show($"Promotion code sent to {customer.Email}.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                // Log or show a less intrusive error. Maybe the order can still be created.
+                MessageBox.Show($"Failed to send promotion email: {ex.Message}", "Email Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 

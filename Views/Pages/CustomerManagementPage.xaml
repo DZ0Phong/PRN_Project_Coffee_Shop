@@ -30,11 +30,11 @@
                 <Button x:Name="SearchButton" Content="Search" Click="SearchButton_Click"/>
             </StackPanel>
 
-            <DataGrid x:Name="CustomersDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" SelectionChanged="CustomersDataGrid_SelectionChanged">
+            <DataGrid x:Name="CustomersDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" SelectionChanged="CustomersDataGrid_SelectionChanged" CellEditEnding="CustomersDataGrid_CellEditEnding">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*"/>
+                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="*" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Name" Binding="{Binding CustomerName}" Width="*"/>
-                    <DataGridTextColumn Header="Points" Binding="{Binding Points}" Width="Auto"/>
+                    <DataGridTextColumn Header="Points" Binding="{Binding Points}" Width="Auto" IsReadOnly="True"/>
                 </DataGrid.Columns>
             </DataGrid>
         </Grid>

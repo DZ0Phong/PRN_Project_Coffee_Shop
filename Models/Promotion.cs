@@ -18,4 +18,8 @@ public partial class Promotion
     public DateOnly EndDate { get; set; }
 
     public bool IsActive { get; set; }
+
+    public int? CustomerId { get; set; }
+
+    public bool IsUsed { get; set; }
 }
