@@ -35,6 +35,11 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
             else
             {
+                // If we are creating a new employee, do not clear the form.
+                if (_selectedEmployee != null && _selectedEmployee.EmployeeId == 0)
+                {
+                    return;
+                }
                 // Keep the form clear if no employee is selected
                 _selectedEmployee = null;
                 EmployeeForm.DataContext = null;
@@ -91,6 +96,15 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
             }
             else // Existing Employee
             {
+                // If a new password has been entered, update it.
+                if (!string.IsNullOrWhiteSpace(PasswordBox.Password))
+                {
+                    var user = _context.Users.Find(_selectedEmployee.UserId);
+                    if (user != null)
+                    {
+                        user.PasswordHash = HashPassword(PasswordBox.Password);
+                    }
+                }
                 // The context is already tracking the _selectedEmployee and its related User.
                 // Changes made in the UI are already updated in the tracked entities.
                 _context.Employees.Update(_selectedEmployee);

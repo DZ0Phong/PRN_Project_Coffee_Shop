@@ -263,10 +263,16 @@ namespace PRN_Project_Coffee_Shop.Views.Pages
                 return;
             }
 
+            var customerEmail = CustomerEmailTextBox.Text;
+            if (!string.IsNullOrWhiteSpace(customerEmail) && !customerEmail.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Invalid email format. Please use a @gmail.com address.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             var table = TableComboBox.SelectedItem.ToString();
             var isDelivery = table == "Ship";
             var deliveryNotes = DeliveryNotesTextBox.Text;
-            var customerEmail = CustomerEmailTextBox.Text;
 
             var (Success, Message, NewOrder) = _orderService.CreateOrder(
                 _currentUser,

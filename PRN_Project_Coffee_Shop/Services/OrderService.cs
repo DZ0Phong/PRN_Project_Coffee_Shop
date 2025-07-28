@@ -96,6 +96,8 @@ namespace PRN_Project_Coffee_Shop.Services
                         {
                             customer = new Customer { Email = customerEmail, CustomerName = "New Customer", Points = 0 };
                             _context.Customers.Add(customer);
+                            // Save the new customer to the database to get a CustomerId
+                            _context.SaveChanges();
                         }
                         
                         newOrder.Customer = customer;
@@ -116,8 +118,6 @@ namespace PRN_Project_Coffee_Shop.Services
                         customer.Points = (customer.Points ?? 0) + pointsToAdd;
                         _context.Customers.Update(customer);
                         
-                        _context.SaveChanges(); 
-
                         if (customer.Points >= 100)
                         {
                             int promotionsToCreate = customer.Points.Value / 100;
@@ -240,8 +240,8 @@ namespace PRN_Project_Coffee_Shop.Services
         {
             if (customer.CustomerId == 0)
             {
-                 // Cannot create promotion for a customer that hasn't been saved to the database yet.
-                 return;
+                // Cannot create promotion for a customer that hasn't been saved to the database yet.
+                return;
             }
 
             var newPromotion = new Promotion
@@ -256,6 +256,37 @@ namespace PRN_Project_Coffee_Shop.Services
                 CustomerId = customer.CustomerId
             };
             _context.Promotions.Add(newPromotion);
+            _context.SaveChanges(); // Save promotion to get an ID
+
+            try
+            {
+                string fromMail = "assasinhp619@gmail.com";
+                string fromPassword = "slos bctt epxv osla"; // App-specific password
+
+                System.Net.Mail.MailMessage message = new System.Net.Mail.MailMessage();
+                message.From = new System.Net.Mail.MailAddress(fromMail, "The Coffee Shop");
+                message.Subject = "Your 20% Discount Code from The Coffee Shop!";
+                message.To.Add(new System.Net.Mail.MailAddress(customer.Email));
+
+                string customerGreetingName = string.IsNullOrWhiteSpace(customer.CustomerName) || customer.CustomerName == "New Customer" ? "Valued Customer" : customer.CustomerName;
+                message.Body = $"<html><body><h3>Hello {customerGreetingName},</h3><p>Congratulations! You've earned a 20% discount on your next order. Use the code below:</p><h2>{newPromotion.PromotionCode}</h2><p>This code is valid for 6 months and can be used once.</p><p>Thank you for being a loyal customer!</p><p>Sincerely,<br/>The Coffee Shop Team</p></body></html>";
+                message.IsBodyHtml = true;
+
+                var smtpClient = new System.Net.Mail.SmtpClient("smtp.gmail.com")
+                {
+                    Port = 587,
+                    Credentials = new System.Net.NetworkCredential(fromMail, fromPassword),
+                    EnableSsl = true,
+                };
+
+                smtpClient.Send(message);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception, but don't block the main process.
+                // In a real app, you'd use a proper logging framework.
+                Console.WriteLine($"Failed to send promotion email: {ex.Message}");
+            }
         }
     }
 }
