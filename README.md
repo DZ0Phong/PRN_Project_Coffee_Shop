@@ -1,5 +1,5 @@
 # ☕ Coffee Shop Management System
-![.NET CI](https://github.com/DZ0Phong/PRN_Project_Coffee_Shop/actions/workflows/dotnet.yml/badge.svg)
+[![.NET CI](https://github.com/DZ0Phong/PRN_Project_Coffee_Shop/actions/workflows/dotnet.yml/badge.svg)](https://github.com/DZ0Phong/PRN_Project_Coffee_Shop/actions)
 
 A professional desktop application for managing a coffee shop chain, built with .NET 8 WPF and following modern software architecture principles.
 
