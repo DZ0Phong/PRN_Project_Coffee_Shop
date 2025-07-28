@@ -45,8 +45,9 @@ namespace CoffeeShop.Tests
         {
             // Arrange
             using (var context = new PrnProjectCoffeeShopContext(_options))
+            
             {
-                // Seed data
+                // Seed dataaa
                 var coffeeCategory = new Category { CategoryId = 1, CategoryName = "Cà Phê" };
                 var ingredient = new Ingredient { IngredientId = 1, IngredientName = "Coffee Beans", QuantityInStock = 100, Unit = "g", ExpiryDate = DateOnly.FromDateTime(DateTime.Now.AddDays(30)) };
                 var product = new Product { ProductId = 1, ProductName = "Espresso", Price = 30000, CategoryId = 1, Category = coffeeCategory, ProductIngredients = new List<ProductIngredient> { new ProductIngredient { IngredientId = 1, QuantityRequired = 10, Ingredient = ingredient } } };
@@ -62,10 +63,10 @@ namespace CoffeeShop.Tests
                     new OrderDetail { ProductId = 1, Product = product, Quantity = 2, Price = 30000, Toppings = new List<Product>() }
                 };
 
-                // Act
+                // Actttt
                 var result = service.CreateOrder(currentUser, orderItems, "Table 2", false, "No sugar", "", null);
 
-                // Assert
+                // Asserttt
                 Assert.True(result.Success);
                 Assert.Equal("Order successfully created!", result.Message);
                 Assert.NotNull(result.NewOrder);
